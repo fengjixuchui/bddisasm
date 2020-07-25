@@ -788,12 +788,6 @@ ShemuComputeLinearAddress(
 {
     uint64_t gla = 0;
 
-    // Memory operands usually have a segment.
-    if (Operand->Info.Memory.HasSeg)
-    {
-        gla += ShemuGetSegBase(Context, Operand->Info.Memory.Seg);
-    }
-
     if (Operand->Info.Memory.HasBase)
     {
         gla += ShemuGetGprValue(Context, Operand->Info.Memory.Base, Operand->Info.Memory.BaseSize, false);
@@ -847,6 +841,31 @@ ShemuComputeLinearAddress(
         if (Operand->Access.Write || Operand->Access.CondWrite)
         {
             gla -= Operand->Size;
+        }
+    }
+
+    // Make sure we truncate the linear address to the address size.
+    switch (Context->Instruction.AddrMode)
+    {
+    case ND_ADDR_32:
+        gla &= 0xFFFFFFFF;
+        break;
+    case ND_ADDR_16:
+        gla &= 0xFFFF;
+    default:
+        break;
+    }
+
+    // Memory operands usually have a segment. Note that we don't care about any segment checks, since we're most
+    // likely be provided with flat segments. If checks should be needed, dedicated callbacks should be added.
+    if (Operand->Info.Memory.HasSeg)
+    {
+        gla += ShemuGetSegBase(Context, Operand->Info.Memory.Seg);
+
+        if (Context->Mode != ND_CODE_64)
+        {
+            // Truncate to 32 bit outside 64 bit.
+            gla &= 0xFFFFFFFF;
         }
     }
 
