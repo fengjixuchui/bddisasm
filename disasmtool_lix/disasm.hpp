@@ -43,25 +43,9 @@ typedef size_t SIZE_T;
 #define MAX_PATH  255
 #endif
 
-#ifndef __in
-#define __in
-#endif
-
-#ifndef __out
-#define __out
-#endif
-
-#ifndef __inout
-#define __inout
-#endif
-
 // Main disasm header file.
 // #include "bdshemu.h"
 #include "bddisasm.h"
-
-#undef __in
-#undef __out
-#undef __inout
 
 #include <unistd.h>
 #include <time.h>
@@ -72,6 +56,8 @@ typedef size_t SIZE_T;
 
 
 std::string enc_mode_to_str(const uint8_t enc_mode);
+std::string op_type_to_str(const ND_OPERAND_TYPE type);
+std::string op_enc_to_str(const ND_OPERAND_ENCODING Encoding);
 std::string ins_class_to_str(const ND_INS_CLASS cls);
 std::string ins_cat_to_str(ND_INS_CATEGORY category);
 std::string ins_set_to_str(ND_INS_SET ins_set);
