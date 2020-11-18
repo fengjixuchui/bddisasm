@@ -173,6 +173,7 @@ static const uint16_t gOperandMap[] =
     ND_OPE_S,       // ND_OPT_MXCSR
     ND_OPE_S,       // ND_OPT_PKRU
     ND_OPE_S,       // ND_OPT_SSP
+    ND_OPE_S,       // ND_OPT_UIF
 
     ND_OPE_S,       // ND_OPT_GPR_AH
     ND_OPE_S,       // ND_OPT_GPR_rAX
@@ -183,6 +184,8 @@ static const uint16_t gOperandMap[] =
     ND_OPE_S,       // ND_OPT_GPR_rBP
     ND_OPE_S,       // ND_OPT_GPR_rSI
     ND_OPE_S,       // ND_OPT_GPR_rDI
+    ND_OPE_S,       // ND_OPT_GPR_rR8
+    ND_OPE_S,       // ND_OPT_GPR_rR9
     ND_OPE_S,       // ND_OPT_GPR_rR11
 
     ND_OPE_S,       // ND_OPT_SEG_CS
@@ -196,6 +199,13 @@ static const uint16_t gOperandMap[] =
     ND_OPE_M,       // ND_OPT_FPU_STX
 
     ND_OPE_S,       // ND_OPT_SSE_XMM0
+    ND_OPE_S,       // ND_OPT_SSE_XMM1
+    ND_OPE_S,       // ND_OPT_SSE_XMM2
+    ND_OPE_S,       // ND_OPT_SSE_XMM3
+    ND_OPE_S,       // ND_OPT_SSE_XMM4
+    ND_OPE_S,       // ND_OPT_SSE_XMM5
+    ND_OPE_S,       // ND_OPT_SSE_XMM6
+    ND_OPE_S,       // ND_OPT_SSE_XMM7
 
     ND_OPE_S,       // ND_OPT_MEM_rBX_AL (as used by XLAT)
     ND_OPE_S,       // ND_OPT_MEM_rDI (as used by masked moves)
@@ -278,6 +288,23 @@ NdGetVersion(
         *Revision = DISASM_VERSION_REVISION;
     }
 
+//
+// Do not use __TIME__ and __DATE__ macros when compiling against a kernel tree.
+//
+#if defined(__KERNEL__) && defined(__GNUC__)
+
+    if (NULL != BuildDate)
+    {
+        *BuildDate = NULL;
+    }
+
+    if (NULL != BuildTime)
+    {
+        *BuildTime = NULL;
+    }
+
+#else
+
     if (NULL != BuildDate)
     {
         *BuildDate = __DATE__;
@@ -287,6 +314,9 @@ NdGetVersion(
     {
         *BuildTime = __TIME__;
     }
+
+#endif
+
 }
 
 #ifndef KERNEL_MODE
@@ -610,7 +640,7 @@ NdFetchEvex(
     // Do EVEX validations outside 64 bits mode.
     if (ND_CODE_64 != Instrux->DefCode)
     {
-        // Evex.R and Evex.X must be 1. If they're not, we have BOUND instruction. This is checkked in the
+        // Evex.R and Evex.X must be 1. If they're not, we have BOUND instruction. This is checked in the
         // first if. Note that they are inverted inside the Evex prefix.
         Instrux->Exs.r = 0;
         Instrux->Exs.x = 0;
@@ -624,8 +654,11 @@ NdFetchEvex(
         // High bit inside Evex.VVVV is ignored, so we force it to 0.
         Instrux->Exs.v &= 0x7;
 
-        // Evex.V' is ignored.
-        Instrux->Exs.vp = 0;
+        // Evex.V' must be 1 (negated to 0) in 32-bit mode.
+        if (Instrux->Exs.vp == 1)
+        {
+            return ND_STATUS_BAD_EVEX_V_PRIME;
+        }
     }
 
     // Update Instrux length & offset, and make sure we don't exceed 15 bytes.
@@ -1678,6 +1711,16 @@ NdParseOperand(
         size = ND_SIZE_1KB;
         break;
 
+    case ND_OPS_384:
+        // 384 bit Key Locker handle.
+        size = ND_SIZE_384BIT;
+        break;
+
+    case ND_OPS_512:
+        // 512 bit Key Locker handle.
+        size = ND_SIZE_512BIT;
+        break;
+
     case ND_OPS_unknown:
         size = ND_SIZE_UNKNOWN;
         break;
@@ -1782,6 +1825,22 @@ NdParseOperand(
         operand->Info.Register.Reg = NDR_RDI;
         break;
 
+    case ND_OPT_GPR_rR8:
+        // Operand is R8.
+        operand->Type = ND_OP_REG;
+        operand->Info.Register.Type = ND_REG_GPR;
+        operand->Info.Register.Size = (ND_REG_SIZE)size;
+        operand->Info.Register.Reg = NDR_R8;
+        break;
+
+    case ND_OPT_GPR_rR9:
+        // Operand is R9.
+        operand->Type = ND_OP_REG;
+        operand->Info.Register.Type = ND_REG_GPR;
+        operand->Info.Register.Size = (ND_REG_SIZE)size;
+        operand->Info.Register.Reg = NDR_R9;
+        break;
+
     case ND_OPT_GPR_rR11:
         // Operand is R11.
         operand->Type = ND_OP_REG;
@@ -1855,11 +1914,18 @@ NdParseOperand(
         break;
 
     case ND_OPT_SSE_XMM0:
-        // Operand is the XMM0 register.
+    case ND_OPT_SSE_XMM1:
+    case ND_OPT_SSE_XMM2:
+    case ND_OPT_SSE_XMM3:
+    case ND_OPT_SSE_XMM4:
+    case ND_OPT_SSE_XMM5:
+    case ND_OPT_SSE_XMM6:
+    case ND_OPT_SSE_XMM7:
+        // Operand is a hard-coded XMM register.
         operand->Type = ND_OP_REG;
         operand->Info.Register.Type = ND_REG_SSE;
         operand->Info.Register.Size = ND_SIZE_128BIT;
-        operand->Info.Register.Reg = 0;
+        operand->Info.Register.Reg = opt - ND_OPT_SSE_XMM0;
         break;
 
     // Special operands. These are always implicit, and can't be encoded inside the instruction.
@@ -1948,6 +2014,14 @@ NdParseOperand(
         operand->Type = ND_OP_REG;
         operand->Info.Register.Type = ND_REG_SSP;
         operand->Info.Register.Size = operand->Size;
+        operand->Info.Register.Reg = 0;
+        break;
+
+    case ND_OPT_UIF:
+        // The operand is the User Interrupt Flag.
+        operand->Type = ND_OP_REG;
+        operand->Info.Register.Type = ND_REG_UIF;
+        operand->Info.Register.Size = ND_SIZE_8BIT; // 1 bit, in fact, but there is no size defined for one bit.
         operand->Info.Register.Reg = 0;
         break;
 
@@ -2044,7 +2118,7 @@ NdParseOperand(
         operand->Type = ND_OP_REG;
         operand->Info.Register.Type = ND_REG_MSR;
         operand->Info.Register.Size = ND_SIZE_64BIT;
-        operand->Info.Register.Reg = NDR_IA32_GS_BASE;
+        operand->Info.Register.Reg = NDR_IA32_KERNEL_GS_BASE;
         break;
 
     case ND_OPT_XCR:
@@ -2093,8 +2167,6 @@ NdParseOperand(
         operand->Type = ND_OP_ADDR;
         operand->Info.Address.BaseSeg = Instrux->Address.Cs;
         operand->Info.Address.Offset = Instrux->Address.Ip;
-
-        Offset = Instrux->Length;
         break;
 
     case ND_OPT_B:
@@ -2325,8 +2397,6 @@ NdParseOperand(
             {
                 operand->Info.Immediate.Imm = imm;
             }
-
-            Offset = Instrux->Length;
         }
         break;
 
@@ -2353,8 +2423,6 @@ NdParseOperand(
         // branches that have 0x66 prefix (in 32 bit mode)!
         operand->Size = Instrux->WordLength;
         operand->Info.RelativeOffset.Rel = ND_SIGN_EX(size, Instrux->RelativeOffset);
-
-        Offset = Instrux->Length;
 
         break;
 
@@ -2415,8 +2483,6 @@ NdParseOperand(
             operand->Info.Memory.Disp = Instrux->Moffset;
             operand->Info.Memory.HasSeg = true;
             operand->Info.Memory.Seg = NdGetSegOverride(Instrux, NDR_DS);
-
-            Offset = Instrux->Length;
         }
         break;
 
@@ -2742,7 +2808,6 @@ memory:
             operand->Info.Register.Reg &= 0x7;
         }
 
-        Offset = Instrux->Length;
         break;
 
     case ND_OPT_U:
@@ -3356,9 +3421,9 @@ NdFindInstruction(
 
         case ND_ILUT_AUXILIARY:
             // Auxiliary redirection. Default to table[0] if nothing matches.
-            if (Instrux->HasRex && (NULL != pTable->Table[ND_ILUT_INDEX_AUX_REX]))
+            if (Instrux->HasRex && Instrux->Rex.b && (NULL != pTable->Table[ND_ILUT_INDEX_AUX_REXB]))
             {
-                nextIndex = ND_ILUT_INDEX_AUX_REX;
+                nextIndex = ND_ILUT_INDEX_AUX_REXB;
             }
             else if (Instrux->HasRex && Instrux->Rex.w && (NULL != pTable->Table[ND_ILUT_INDEX_AUX_REXW]))
             {
@@ -3649,9 +3714,11 @@ NdGetEffectiveOpMode(
     // Extract the flags.
     width = (0 != Instrux->Exs.w) && !(Instrux->Attributes & ND_FLAG_WIG);
     // In 64 bit mode, the operand is forced to 64 bit. Size-changing prefixes are ignored.
-    f64 = 0 != (Instrux->Attributes & ND_FLAG_F64);
-    // In 64 bit mode, the operand defaults to 64 bit  No 32 bit form of the instruction exists.
-    d64 = 0 != (Instrux->Attributes & ND_FLAG_D64);
+    f64 = 0 != (Instrux->Attributes & ND_FLAG_F64) && (ND_VEND_AMD != Instrux->VendMode);
+    // In 64 bit mode, the operand defaults to 64 bit. No 32 bit form of the instruction exists. Note that on AMD,
+    // only default 64 bit operands exist, even for branches - no operand is forced to 64 bit.
+    d64 = (0 != (Instrux->Attributes & ND_FLAG_D64)) ||
+          (0 != (Instrux->Attributes & ND_FLAG_F64) && (ND_VEND_AMD == Instrux->VendMode));
     // Check if 0x66 is indeed interpreted as a size changing prefix. Note that if 0x66 is a mandatory prefix,
     // then it won't be interpreted as a size changing prefix. However, there is an exception: MOVBE and CRC32
     // have mandatory 0xF2, and 0x66 is in fact a size changing prefix.
@@ -3711,10 +3778,16 @@ NdValidateInstruction(
     // VEX/EVEX validations.
     if (ND_ENCM_LEGACY != Instrux->EncMode)
     {
-        // Instructions that don't use VEX/XOP vvvv field must set it to 1111b/0, otherwise a #UD will be generated.
+        // Instructions that don't use VEX/XOP/EVEX vvvv field must set it to 1111b/0, otherwise a #UD will be generated.
         if ((0 == (Instrux->OperandsEncodingMap & (1 << ND_OPE_V))) && (0 != Instrux->Exs.v))
         {
             return ND_STATUS_VEX_VVVV_MUST_BE_ZERO;
+        }
+
+        // Instruction that don't use EVEX.V' field must set to to 1b/0, otherwise a #UD will be generated.
+        if ((0 == (Instrux->OperandsEncodingMap & (1 << ND_OPE_V))) && !ND_HAS_VSIB(Instrux) && (0 != Instrux->Exs.vp))
+        {
+            return ND_STATUS_BAD_EVEX_V_PRIME;
         }
 
         // Some instructions don't support 128 bit vectors.
@@ -3728,8 +3801,9 @@ NdValidateInstruction(
         if (ND_HAS_VSIB(Instrux) && Instrux->Category != ND_CAT_SCATTER)
         {
             uint8_t usedVects[32] = { 0 };
+            uint32_t i;
 
-            for (uint32_t i = 0; i < Instrux->OperandsCount; i++)
+            for (i = 0; i < Instrux->OperandsCount; i++)
             {
                 if (Instrux->Operands[i].Type == ND_OP_REG && Instrux->Operands[i].Info.Register.Type == ND_REG_SSE)
                 {
@@ -3861,6 +3935,7 @@ NdDecodeWithContext(
     NDSTATUS status;
     PND_INSTRUCTION pIns;
     uint32_t opIndex;
+    size_t i;
 
     // pre-init
     status = ND_STATUS_SUCCESS;
@@ -3912,10 +3987,16 @@ NdDecodeWithContext(
     Instrux->VendMode = (uint8_t)Context->VendMode;
     Instrux->FeatMode = (uint8_t)Context->FeatMode;
 
-    // Fetch prefixes. We peek at the first byte, if that's not a prefix, there's no need to call the main decoder.
-    if (ND_PREF_CODE_NONE != gPrefixesMap[Code[0]])
+    // Copy the instruction bytes.
+    for (opIndex = 0; opIndex < ((Size < ND_MAX_INSTRUCTION_LENGTH) ? Size : ND_MAX_INSTRUCTION_LENGTH); opIndex++)
     {
-        status = NdFetchPrefixes(Instrux, Code, 0, Size);
+        Instrux->InstructionBytes[opIndex] = Code[opIndex];
+    }
+
+    // Fetch prefixes. We peek at the first byte, if that's not a prefix, there's no need to call the main decoder.
+    if (ND_PREF_CODE_NONE != gPrefixesMap[Instrux->InstructionBytes[0]])
+    {
+        status = NdFetchPrefixes(Instrux, Instrux->InstructionBytes, 0, Size);
         if (!ND_SUCCESS(status))
         {
             return status;
@@ -3930,7 +4011,7 @@ NdDecodeWithContext(
     }
 
     // Start iterating the tables, in order to extract the instruction entry.
-    status = NdFindInstruction(Instrux, Code, Instrux->Length, Size, &pIns);
+    status = NdFindInstruction(Instrux, Instrux->InstructionBytes, Instrux->Length, Size, &pIns);
     if (!ND_SUCCESS(status))
     {
         return status;
@@ -3958,7 +4039,7 @@ NdDecodeWithContext(
     Instrux->TupleType = pIns->TupleType;
 
     // Copy the mnemonic, up until the NULL terminator.
-    for (size_t i = 0; i < sizeof(Instrux->Mnemonic); i++)
+    for (i = 0; i < sizeof(Instrux->Mnemonic); i++)
     {
         Instrux->Mnemonic[i] = gMnemonics[pIns->Mnemonic][i];
         if (Instrux->Mnemonic[i] == 0)
@@ -4020,7 +4101,8 @@ NdDecodeWithContext(
     // And now decode each operand.
     for (opIndex = 0; opIndex < Instrux->OperandsCount; ++opIndex)
     {
-        status = NdParseOperand(Instrux, Code, Instrux->Length, Size, opIndex, pIns->Operands[opIndex]);
+        status = NdParseOperand(Instrux, Instrux->InstructionBytes, Instrux->Length, Size, 
+                                opIndex, pIns->Operands[opIndex]);
         if (!ND_SUCCESS(status))
         {
             return status;
@@ -4056,12 +4138,6 @@ NdDecodeWithContext(
     if (!ND_SUCCESS(status))
     {
         return status;
-    }
-
-    // Copy the instruction bytes.
-    for (opIndex = 0; opIndex < Instrux->Length; opIndex++)
-    {
-        Instrux->InstructionBytes[opIndex] = Code[opIndex];
     }
 
     // All done! Instruction successfully decoded!
@@ -4620,6 +4696,11 @@ NdToText(
                     return ND_STATUS_INVALID_INSTRUX;
                 }
 
+                if (!ND_SUCCESS(status))
+                {
+                    return status;
+                }
+
                 res = nd_strcat_s(Buffer, BufferSize, temp);
                 RET_EQ(res, NULL, ND_STATUS_BUFFER_OVERFLOW);
             }
@@ -4662,6 +4743,10 @@ NdToText(
                     break;
                 case 32:
                     res = nd_strcat_s(Buffer, BufferSize, "ymmword ptr ");
+                    RET_EQ(res, NULL, ND_STATUS_BUFFER_OVERFLOW);
+                    break;
+                case 48:
+                    res = nd_strcat_s(Buffer, BufferSize, "m384 ptr ");
                     RET_EQ(res, NULL, ND_STATUS_BUFFER_OVERFLOW);
                     break;
                 case 64:
@@ -4807,13 +4892,13 @@ NdToText(
                         switch (pOp->Info.Memory.DispSize)
                         {
                         case 1:
-                            normDisp = ((disp & 0x80) ? ~((uint8_t)disp) + 1UL : disp) & 0xFF;
+                            normDisp = ((disp & 0x80) ? ~((uint8_t)disp) + 1ULL : disp) & 0xFF;
                             break;
                         case 2:
-                            normDisp = ((disp & 0x8000) ? ~((uint16_t)disp) + 1UL : disp) & 0xFFFF;
+                            normDisp = ((disp & 0x8000) ? ~((uint16_t)disp) + 1ULL : disp) & 0xFFFF;
                             break;
                         case 4:
-                            normDisp = ((disp & 0x80000000) ? ~((uint32_t)disp) + 1 : disp) & 0xFFFFFFFF;
+                            normDisp = ((disp & 0x80000000) ? ~((uint32_t)disp) + 1ULL : disp) & 0xFFFFFFFF;
                             break;
                         default:
                             normDisp = disp;
@@ -4825,7 +4910,7 @@ NdToText(
                         // the normDisp is converted to a positive quantity, so no sign-extension is needed.
                         if (pOp->Info.Memory.HasCompDisp)
                         {
-                            normDisp = (uint32_t)normDisp * pOp->Info.Memory.CompDispSize;
+                            normDisp = (uint64_t)(uint32_t)normDisp * pOp->Info.Memory.CompDispSize;
                         }
                     }
 
@@ -5041,7 +5126,7 @@ NdGetFullAccessMap(
             {
             case ND_REG_GPR:
                 {
-                    uint8_t k;
+                    uint32_t k;
 
                     for (k = 0; k < pOp->Info.Register.Count; k++)
                     {
@@ -5060,7 +5145,7 @@ NdGetFullAccessMap(
                 break;
             case ND_REG_SSE:
                 {
-                    uint8_t k;
+                    uint32_t k;
 
                     for (k = 0; k < pOp->Info.Register.Count; k++)
                     {

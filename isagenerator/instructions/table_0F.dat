@@ -29,6 +29,10 @@ MONITOR        nil           EAX,ECX,EDX               [         NP 0x0F 0x01 /0
 MWAIT          nil           EAX,ECX                   [         NP 0x0F 0x01 /0xC9]           s:SSE3, t:MISC, w:RW|R, i:MONITOR, m:KERNEL|NOV86
 CLAC           nil           Fv                        [         NP 0x0F 0x01 /0xCA]           s:SMAP, t:SMAP, w:W, f:AC=0, m:KERNEL|NOV86
 STAC           nil           Fv                        [         NP 0x0F 0x01 /0xCB]           s:SMAP, t:SMAP, w:W, f:AC=1, m:KERNEL|NOV86
+TDCALL         nil           nil                       [       0x66 0x0F 0x01 /0xCC]           s:TDX, t:TDX, m:KERNEL|VMXNROOT
+SEAMRET        nil           nil                       [       0x66 0x0F 0x01 /0xCD]           s:TDX, t:TDX, f:VMX, m:SEAMR
+SEAMOPS        nil           RAX,RCX,RDX,R8,R9         [       0x66 0x0F 0x01 /0xCE]           s:TDX, t:TDX, w:RW|R|R|R|R, m:SEAMR
+SEAMCALL       nil           nil                       [       0x66 0x0F 0x01 /0xCF]           s:TDX, t:TDX, f:VMX, m:SEAMN
 ENCLS          nil           EAX,RBX,RCX,RDX           [         NP 0x0F 0x01 /0xCF]           s:SGX, t:SGX, w:R|CRW|CRW|CRW, m:KERNEL|NOSMM|NOTSX
 XGETBV         nil           ECX,EDX,EAX,XCR           [         NP 0x0F 0x01 /0xD0]           s:XSAVE, t:XSAVE, w:R|W|W|R
 XSETBV         nil           ECX,EDX,EAX,XCR           [         NP 0x0F 0x01 /0xD1]           s:XSAVE, t:XSAVE, w:R|R|R|W, m:KERNEL
@@ -36,19 +40,6 @@ VMFUNC         nil           nil                       [         NP 0x0F 0x01 /0
 XEND           nil           nil                       [         NP 0x0F 0x01 /0xD5]           s:TSX, t:COND_BR, i:RTM
 XTEST          nil           Fv                        [         NP 0x0F 0x01 /0xD6]           s:TSX, t:LOGIC, w:W, i:RTM, f:CF=0|PF=0|AF=0|ZF=m|SF=0|OF=0
 ENCLU          nil           EAX,RBX,RCX,RDX           [         NP 0x0F 0x01 /0xD7]           s:SGX, t:SGX, w:R|CRW|CRW|CRW, m:USER|NOSMM|NOTSX
-SERIALIZE      nil           nil                       [         NP 0x0F 0x01 /0xE8]           s:SERIALIZE, t:MISC, a:SERIAL
-XSUSLDTRK      nil           nil                       [       0xF2 0x0F 0x01 /0xE8]           s:TSXLDTRK, t:MISC
-XRESLDTRK      nil           nil                       [       0xF2 0x0F 0x01 /0xE9]           s:TSXLDTRK, t:MISC
-SAVEPREVSSP    nil           SHSS,SSP                  [       0xF3 0x0F 0x01 /0xEA]           s:CET_SS, t:CET, w:RW|R, f:CF=t
-RDPKRU         nil           EDX,EAX,ECX,PKRU          [         NP 0x0F 0x01 /0xEE]           s:PKU, t:MISC, w:W|W|R|R
-WRPKRU         nil           EDX,EAX,ECX,PKRU          [         NP 0x0F 0x01 /0xEF]           s:PKU, t:MISC, w:R|R|R|W
-SWAPGS         nil           GSBASE,KGSBASE            [            0x0F 0x01 /0xF8]           s:LONGMODE, t:SYSTEM, w:RW|RW, m:KERNEL|O64
-RDTSCP         nil           EAX,EDX,ECX,TSC,TSCAUX    [            0x0F 0x01 /0xF9]           s:RDTSCP, t:SYSTEM, w:W|W|W|R|R
-MONITORX       nil           EAX,ECX,EDX               [         NP 0x0F 0x01 /0xFA]           s:MWAITT, t:SYSTEM, w:R|R|R, m:KERNEL|NOV86
-MCOMMIT        nil           Fv                        [       0xF3 0x0F 0x01 /0xFA]           s:MCOMMIT, t:MISC, w:W, f:CF=m|PF=0|AF=0|ZF=0|SF=0|OF=0
-MWAITX         nil           EAX,ECX,EBX               [         NP 0x0F 0x01 /0xFB]           s:MWAITT, t:SYSTEM, w:R|R|R, m:KERNEL|NOV86
-CLZERO         nil           rAX                       [            0x0F 0x01 /0xFC]           s:CLZERO, t:MISC, w:R
-RDPRU          nil           EAX,EDX,ECX,Fv            [            0x0F 0x01 /0xFD]           s:RDPRU, t:MISC, w:W|W|R|W, f:CF=m|PF=0|AF=0|ZF=0|SF=0|OF=0
 VMRUN          nil           rAX                       [            0x0F 0x01 /0xD8]           s:SVM, t:SYSTEM, w:R, m:VMXROOT
 VMMCALL        nil           nil                       [            0x0F 0x01 /0xD9]           s:SVM, t:SYSTEM, m:VMX
 VMMCALL        nil           nil                       [       0x66 0x0F 0x01 /0xD9]           s:SVM, t:SYSTEM, m:VMX
@@ -60,7 +51,24 @@ STGI           nil           nil                       [            0x0F 0x01 /0
 CLGI           nil           nil                       [            0x0F 0x01 /0xDD]           s:SVM, t:SYSTEM, m:VMXROOT
 SKINIT         nil           EAX                       [            0x0F 0x01 /0xDE]           s:SVM, t:SYSTEM, w:R, m:VMXROOT
 INVLPGA        nil           rAX,ECX                   [            0x0F 0x01 /0xDF]           s:SVM, t:SYSTEM, w:R|R, m:VMXROOT
+SERIALIZE      nil           nil                       [         NP 0x0F 0x01 /0xE8]           s:SERIALIZE, t:MISC, a:SERIAL
 SETSSBSY       nil           SHS0,SSP                  [       0xF3 0x0F 0x01 /0xE8]           s:CET_SS, t:CET, a:SHS, w:RW|RW
+XSUSLDTRK      nil           nil                       [       0xF2 0x0F 0x01 /0xE8]           s:TSXLDTRK, t:MISC
+XRESLDTRK      nil           nil                       [       0xF2 0x0F 0x01 /0xE9]           s:TSXLDTRK, t:MISC
+SAVEPREVSSP    nil           SHSS,SSP                  [       0xF3 0x0F 0x01 /0xEA]           s:CET_SS, t:CET, w:RW|R, f:CF=t
+UIRET          nil           rIP,Fv,sSP,UIF,Kv3,SHS1   [       0xF3 0x0F 0x01 /0xEC]           s:UINTR, t:UINTR, a:F64, w:W|W|W|W|R|R, m:O64|NOTSX|NOSGX
+TESTUI         nil           UIF,Fv                    [       0xF3 0x0F 0x01 /0xED]           s:UINTR, t:UINTR, w:R|W, f:UINTR, m:O64|NOSGX
+RDPKRU         nil           EDX,EAX,ECX,PKRU          [         NP 0x0F 0x01 /0xEE]           s:PKU, t:MISC, w:W|W|R|R
+CLUI           nil           UIF                       [       0xF3 0x0F 0x01 /0xEE]           s:UINTR, t:UINTR, w:W, m:O64|NOTSX|NOSGX
+WRPKRU         nil           EDX,EAX,ECX,PKRU          [         NP 0x0F 0x01 /0xEF]           s:PKU, t:MISC, w:R|R|R|W
+STUI           nil           UIF                       [       0xF3 0x0F 0x01 /0xEF]           s:UINTR, t:UINTR, w:W, m:O64|NOTSX|NOSGX
+SWAPGS         nil           GSBASE,KGSBASE            [            0x0F 0x01 /0xF8]           s:LONGMODE, t:SYSTEM, w:RW|RW, m:KERNEL|O64
+RDTSCP         nil           EAX,EDX,ECX,TSC,TSCAUX    [            0x0F 0x01 /0xF9]           s:RDTSCP, t:SYSTEM, w:W|W|W|R|R
+MONITORX       nil           EAX,ECX,EDX               [         NP 0x0F 0x01 /0xFA]           s:MWAITT, t:SYSTEM, w:R|R|R, m:KERNEL|NOV86
+MCOMMIT        nil           Fv                        [       0xF3 0x0F 0x01 /0xFA]           s:MCOMMIT, t:MISC, w:W, f:CF=m|PF=0|AF=0|ZF=0|SF=0|OF=0
+MWAITX         nil           EAX,ECX,EBX               [         NP 0x0F 0x01 /0xFB]           s:MWAITT, t:SYSTEM, w:R|R|R, m:KERNEL|NOV86
+CLZERO         nil           rAX                       [            0x0F 0x01 /0xFC]           s:CLZERO, t:MISC, w:R
+RDPRU          nil           EAX,EDX,ECX,Fv            [            0x0F 0x01 /0xFD]           s:RDPRU, t:MISC, w:W|W|R|W, f:CF=m|PF=0|AF=0|ZF=0|SF=0|OF=0
 INVLPGB        nil           rAX,ECX,EDX               [            0x0F 0x01 /0xFE]           s:INVLPGB, t:SYSTEM, w:R|R|R, m:NOREAL|KERNEL
 RMPADJUST      nil           RAX,RCX,RDX,Fv            [       0xF3 0x0F 0x01 /0xFE]           s:SNP, t:SYSTEM, w:RW|R|R|W, f:OF=m|ZF=m|AF=m|PF=m|SF=m, m:O64|KERNEL
 RMPUPDATE      nil           RAX,RCX,Fv                [       0xF2 0x0F 0x01 /0xFE]           s:SNP, t:SYSTEM, w:RW|R|W, f:OF=m|ZF=m|AF=m|PF=m|SF=m, m:O64|KERNEL
@@ -79,7 +87,8 @@ SYSRET         nil           STAR,SS,rCX,R11,CS,rIP,Fv,SSP [        0x0F 0x07]  
 INVD           nil           nil                       [            0x0F 0x08]                 s:I486REAL, t:SYSTEM, a:SERIAL, m:KERNEL|NOV86
 WBINVD         nil           nil                       [            0x0F 0x09]                 s:I486REAL, t:SYSTEM, a:SERIAL, m:KERNEL|NOV86
 WBNOINVD       nil           nil                       [      a0xF3 0x0F 0x09]                 s:WBNOINVD, t:WBNOINVD, m:KERNEL|NOV86
-CL1INVMB       nil           nil                       [            0x0F 0x0A]                 s:SCC, t:SYSTEM
+# Not supported by regulat x86 CPUs.
+#CL1INVMB       nil           nil                       [            0x0F 0x0A]                 s:SCC, t:SYSTEM, m:NO64
 UD2            nil           nil                       [            0x0F 0x0B]                 s:PPRO, t:MISC
 PREFETCHE      Mb            nil                       [            0x0F 0x0D /0:mem]          s:PREFETCH_NOP, t:PREFETCH, w:P
 NOP            Ev,Gv         nil                       [            0x0F 0x0D /0:reg]          s:PPRO, t:NOP, w:N|N
@@ -209,8 +218,8 @@ MOV            Ry,Cy         nil                       [            0x0F 0x20 /r
 MOV            Ry,Dy         nil                       [            0x0F 0x21 /r]              s:I86, t:DATAXFER, c:MOV_DR, w:W|R, a:MFR|F64, m:KERNEL|NOV86
 MOV            Cy,Ry         nil                       [            0x0F 0x22 /r]              s:I86, t:DATAXFER, c:MOV_CR, w:W|R, a:LOCKSP|MFR|F64|SERIAL, m:KERNEL|NOV86
 MOV            Dy,Ry         nil                       [            0x0F 0x23 /r]              s:I86, t:DATAXFER, c:MOV_DR, w:W|R, a:MFR|F64|SERIAL, m:KERNEL|NOV86
-MOV            Ry,Ty         nil                       [            0x0F 0x24 /r]              s:I86, t:DATAXFER, c:MOV_TR, w:W|R, a:MFR|F64, m:KERNEL|NOV86
-MOV            Ty,Ry         nil                       [            0x0F 0x26 /r]              s:I86, t:DATAXFER, c:MOV_TR, w:W|R, a:MFR|F64, m:KERNEL|NOV86
+MOV            Ry,Ty         nil                       [            0x0F 0x24 /r]              s:I86, t:DATAXFER, c:MOV_TR, w:W|R, a:MFR|F64, m:KERNEL|NOV86|NO64
+MOV            Ty,Ry         nil                       [            0x0F 0x26 /r]              s:I86, t:DATAXFER, c:MOV_TR, w:W|R, a:MFR|F64, m:KERNEL|NOV86|NO64
 MOVAPS         Vps,Wps       nil                       [         NP 0x0F 0x28 /r]              s:SSE, t:DATAXFER, w:W|R, e:1
 MOVAPD         Vpd,Wpd       nil                       [       0x66 0x0F 0x28 /r]              s:SSE2, t:DATAXFER, w:W|R, e:1
 MOVAPS         Wps,Vps       nil                       [         NP 0x0F 0x29 /r]              s:SSE, t:DATAXFER, w:W|R, e:1
@@ -246,7 +255,7 @@ SYSEXIT        nil           SS,sSP,CS,rIP,SSP         [            0x0F 0x35]  
 RDSHR          Ed            nil                       [      cyrix 0x0F 0x36 /r]              s:CYRIX, t:SYSTEM, w:R
 GETSEC         nil           EAX,EBX                   [         NP 0x0F 0x37]                 s:SMX, t:SYSTEM, w:RCW|R, m:KERNEL|NOREAL|NOSGX
 WRSHR          Ed            nil                       [      cyrix 0x0F 0x37 /r]              s:CYRIX, t:SYSTEM, w:W
-DMINT          nil           nil                       [            0x0F 0x39]                 s:CYRIX, t:SYSTEM
+DMINT          nil           nil                       [            0x0F 0x39]                 s:CYRIX, t:SYSTEM, m:NO64
 CPU_WRITE      nil           nil                       [            0x0F 0x3C]                 s:CYRIX, t:SYSTEM
 CPU_READ       nil           nil                       [            0x0F 0x3D]                 s:CYRIX, t:SYSTEM
 ALTINST        nil           nil                       [            0x0F 0x3F]                 s:CYRIX, t:SYSTEM
@@ -508,7 +517,7 @@ TPAUSE         Ry            EDX,EAX,Fv                [       0x66 0x0F 0xAE /6
 MFENCE         nil           nil                       [         NP 0x0F 0xAE /6:reg]          s:SSE2, t:MISC
 SFENCE         nil           nil                       [         NP 0x0F 0xAE /7:reg]          s:SSE2, t:MISC
 # Intel dropped support for the PCOMMIT instruction before it was shipped in any CPU. The following instruction wil ALWAYS cause a #UD from now on.
-PCOMMIT        nil           nil                       [       0x66 0x0F 0xAE /7:reg]          s:PCOMMIT, t:MISC
+#PCOMMIT        nil           nil                       [       0x66 0x0F 0xAE /7:reg]          s:PCOMMIT, t:MISC
 
 IMUL           Gv,Ev         Fv                        [            0x0F 0xAF /r]              s:I86, t:ARITH, w:RW|R|W, f:MUL
 
@@ -566,6 +575,7 @@ VMXON          Mq            Fv                        [       0xF3 0x0F 0xC7 /6
 VMPTRST        Mq            Fv                        [         NP 0x0F 0xC7 /7:mem]          s:VTX, t:VTX, w:W|W, f:VMX, m:VMXROOT
 RDRAND         Rv            Fv                        [            0x0F 0xC7 /6:reg]          s:RDRAND, t:RDRAND, w:W|W, f:CF=m|PF=0|AF=0|ZF=0|SF=0|OF=0
 RDRAND         Rv            Fv                        [       0x66 0x0F 0xC7 /6:reg]          s:RDRAND, t:RDRAND, a:S66, w:W|W, f:CF=m|PF=0|AF=0|ZF=0|SF=0|OF=0
+SENDUIPI       Rq            nil                       [       0xF3 0x0F 0xC7 /6:reg]          s:UINTR, t:UINTR, w:RW, m:O64|NOTSX|NOSGX
 RDSEED         Rv            Fv                        [            0x0F 0xC7 /7:reg]          s:RDSEED, t:RDSEED, w:W|W, f:CF=m|PF=0|AF=0|ZF=0|SF=0|OF=0
 RDSEED         Rv            Fv                        [       0x66 0x0F 0xC7 /7:reg]          s:RDSEED, t:RDSEED, a:S66, w:W|W, f:CF=m|PF=0|AF=0|ZF=0|SF=0|OF=0
 RDPID          Ryf           TSCAUX                    [       0xF3 0x0F 0xC7 /7:reg]          s:RDPID, t:RDPID, w:W|R

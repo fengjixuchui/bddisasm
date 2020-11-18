@@ -11,7 +11,7 @@
 typedef uint64_t    QWORD, *PQWORD;
 
 // Main disasm header file.
-#include "bdshemu\bdshemu.h"
+#include "bdshemu.h"
 #include "bddisasm.h"
 
 
@@ -115,6 +115,7 @@ const char* set_to_string(
     case ND_SET_AVX512VNNI:            return "AVX512VNNI";
     case ND_SET_AVX512VP2INTERSECT:    return "AVX512VP2INTERSECT";
     case ND_SET_AVX512VPOPCNTDQ:       return "AVX512VPOPCNTDQ";
+    case ND_SET_AVXVNNI:               return "AVXVNNI";
     case ND_SET_BMI1:                  return "BMI1";
     case ND_SET_BMI2:                  return "BMI2";
     case ND_SET_CET_SS:                return "CET_SS";
@@ -133,6 +134,7 @@ const char* set_to_string(
     case ND_SET_FMA4:                  return "FMA4";
     case ND_SET_FXSAVE:                return "FXSAVE";
     case ND_SET_GFNI:                  return "GFNI";
+    case ND_SET_HRESET:                return "HRESET";
     case ND_SET_I186:                  return "I186";
     case ND_SET_I286PROT:              return "I286PROT";
     case ND_SET_I286REAL:              return "I286REAL";
@@ -143,6 +145,7 @@ const char* set_to_string(
     case ND_SET_I86:                   return "I86";
     case ND_SET_INVPCID:               return "INVPCID";
     case ND_SET_INVLPGB:               return "INVLPGB";
+    case ND_SET_KL:                    return "KL";
     case ND_SET_LONGMODE:              return "LONGMODE";
     case ND_SET_LWP:                   return "LWP";
     case ND_SET_LZCNT:                 return "LZCNT";
@@ -155,7 +158,6 @@ const char* set_to_string(
     case ND_SET_MWAITT:                return "MWAITT";
     case ND_SET_PAUSE:                 return "PAUSE";
     case ND_SET_PCLMULQDQ:             return "PCLMULQDQ";
-    case ND_SET_PCOMMIT:               return "PCOMMIT";
     case ND_SET_PCONFIG:               return "PCONFIG";
     case ND_SET_PENTIUMREAL:           return "PENTIUMREAL";
     case ND_SET_PKU:                   return "PKU";
@@ -170,7 +172,6 @@ const char* set_to_string(
     case ND_SET_RDSEED:                return "RDSEED";
     case ND_SET_RDTSCP:                return "RDTSCP";
     case ND_SET_RDWRFSGS:              return "RDWRFSGS";
-    case ND_SET_SCC:                   return "SCC";
     case ND_SET_SERIALIZE:             return "SERIALIZE";
     case ND_SET_SGX:                   return "SGX";
     case ND_SET_SHA:                   return "SHA";
@@ -186,9 +187,11 @@ const char* set_to_string(
     case ND_SET_SSSE3:                 return "SSSE3";
     case ND_SET_SVM:                   return "SVM";
     case ND_SET_TBM:                   return "TBM";
+    case ND_SET_TDX:                   return "TDX";
     case ND_SET_TSX:                   return "TSX";
     case ND_SET_TSXLDTRK:              return "TSXLDTRK";
     case ND_SET_UD:                    return "UD";
+    case ND_SET_UINTR:                 return "UINTR";
     case ND_SET_UNKNOWN:               return "UNKNOWN";
     case ND_SET_VAES:                  return "VAES";
     case ND_SET_VPCLMULQDQ:            return "VPCLMULQDQ";
@@ -216,6 +219,7 @@ const char* category_to_string(
     {
     case ND_CAT_3DNOW:                return "3DNOW";
     case ND_CAT_AES:                  return "AES";
+    case ND_CAT_AESKL:                return "AESKL";
     case ND_CAT_ARITH:                return "ARITH";
     case ND_CAT_AMX:                  return "AMX";
     case ND_CAT_AVX:                  return "AVX";
@@ -225,6 +229,7 @@ const char* category_to_string(
     case ND_CAT_AVX512BF16:           return "AVX512BF16";
     case ND_CAT_AVX512VBMI:           return "AVX512VBMI";
     case ND_CAT_AVX512VP2INTERSECT:   return "AVX512VP2INTERSECT";
+    case ND_CAT_AVXVNNI:              return "AVXVNNI";
     case ND_CAT_BITBYTE:              return "BITBYTE";
     case ND_CAT_BLEND:                return "BLEND";
     case ND_CAT_BMI1:                 return "BMI1";
@@ -246,11 +251,13 @@ const char* category_to_string(
     case ND_CAT_FMA4:                 return "FMA4";
     case ND_CAT_GATHER:               return "GATHER";
     case ND_CAT_GFNI:                 return "GFNI";
+    case ND_CAT_HRESET:               return "HRESET";
     case ND_CAT_I386:                 return "I386";
     case ND_CAT_IFMA:                 return "IFMA";
     case ND_CAT_INTERRUPT:            return "INTERRUPT";
     case ND_CAT_IO:                   return "IO";
     case ND_CAT_IOSTRINGOP:           return "IOSTRINGOP";
+    case ND_CAT_KL:                   return "KL";
     case ND_CAT_KMASK:                return "KMASK";
     case ND_CAT_KNL:                  return "KNL";
     case ND_CAT_LOGIC:                return "LOGIC";
@@ -291,7 +298,9 @@ const char* category_to_string(
     case ND_CAT_SYSCALL:              return "SYSCALL";
     case ND_CAT_SYSRET:               return "SYSRET";
     case ND_CAT_SYSTEM:               return "SYSTEM";
+    case ND_CAT_TDX:                  return "TDX";
     case ND_CAT_UD:                   return "UD";
+    case ND_CAT_UINTR:                return "UINTR";
     case ND_CAT_UNCOND_BR:            return "UNCOND_BR";
     case ND_CAT_UNKNOWN:              return "UNKNOWN";
     case ND_CAT_VAES:                 return "VAES";
@@ -305,6 +314,7 @@ const char* category_to_string(
     case ND_CAT_WAITPKG:              return "WAITPKG";
     case ND_CAT_WBNOINVD:             return "WBNOINVD";
     case ND_CAT_WIDENOP:              return "WIDENOP";
+    case ND_CAT_WIDE_KL:              return "WIDE_KL";
     case ND_CAT_X87_ALU:              return "X87_ALU";
     case ND_CAT_XOP:                  return "XOP";
     case ND_CAT_XSAVE:                return "XSAVE";
@@ -362,6 +372,7 @@ const char* regtype_to_string(
     case ND_REG_SSP: return "SSP";
     case ND_REG_FLG: return "Flags";
     case ND_REG_RIP: return "IP";
+    case ND_REG_UIF: return "UIF";
     default: return "???";
     }
 }
@@ -496,7 +507,7 @@ VOID str_strip(
 )
 {
     DWORD lenInStr, lenOutStr, lenTokStr;
-    DWORD itInStr = 0, itTokStr = 0;
+    DWORD itInStr, itTokStr;
     lenTokStr = 0;
     lenOutStr = 0;
 
@@ -717,7 +728,7 @@ print_instruction(
                 printf(", sub-leaf: 0x%08x", Instrux->CpuidFlag.SubLeaf);
             }
 
-            printf(", reg: %s, bit: %d\n", regs[Instrux->CpuidFlag.Reg], Instrux->CpuidFlag.Bit);
+            printf(", reg: %s, bit: %u\n", regs[Instrux->CpuidFlag.Reg], Instrux->CpuidFlag.Bit);
         }
 
         if (Instrux->HasEvex)
@@ -828,7 +839,8 @@ print_instruction(
         printf("        Valid modes\n"
                "                R0: %s, R1: %s, R2: %s, R3: %s\n"
                "                Real: %s, V8086: %s, Prot: %s, Compat: %s, Long: %s\n"
-               "                SMM: %s, SGX: %s, TSX: %s, VMXRoot: %s, VMXNonRoot: %s\n",
+               "                SMM on: %s, SMM off: %s, SGX on: %s, SGX off: %s, TSX on: %s, TSX off: %s\n"
+               "                VMXRoot: %s, VMXNonRoot: %s, VMXRoot SEAM: %s, VMXNonRoot SEAM: %s, VMX off: %s\n",
                Instrux->ValidModes.Ring0 ? "yes" : "no",
                Instrux->ValidModes.Ring1 ? "yes" : "no",
                Instrux->ValidModes.Ring2 ? "yes" : "no",
@@ -839,10 +851,16 @@ print_instruction(
                Instrux->ValidModes.Compat ? "yes" : "no",
                Instrux->ValidModes.Long ? "yes" : "no",
                Instrux->ValidModes.Smm ? "yes" : "no",
+               Instrux->ValidModes.SmmOff ? "yes" : "no",
                Instrux->ValidModes.Sgx ? "yes" : "no",
+               Instrux->ValidModes.SgxOff ? "yes" : "no",
                Instrux->ValidModes.Tsx ? "yes" : "no",
+               Instrux->ValidModes.TsxOff ? "yes" : "no",
                Instrux->ValidModes.VmxRoot ? "yes" : "no",
-               Instrux->ValidModes.VmxNonRoot ? "yes" : "no"
+               Instrux->ValidModes.VmxNonRoot ? "yes" : "no",
+               Instrux->ValidModes.VmxRootSeam ? "yes" : "no",
+               Instrux->ValidModes.VmxNonRootSeam ? "yes" : "no",
+               Instrux->ValidModes.VmxOff ? "yes" : "no"
                );
 
         printf("        Valid prefixes\n"
@@ -862,7 +880,7 @@ print_instruction(
 
         for (i = 0; i < Instrux->OperandsCount; i++)
         {
-            printf("        Operand: %d, Acc:  %s,  Type: %10s, Size: %2d, RawSize: %2d, Encoding: %s", i,
+            printf("        Operand: %u, Acc:  %s,  Type: %10s, Size: %2d, RawSize: %2d, Encoding: %s", i,
                 Instrux->Operands[i].Access.Access == ND_ACCESS_READ ? "R-" :
                 Instrux->Operands[i].Access.Access == ND_ACCESS_WRITE ? "-W" :
                 Instrux->Operands[i].Access.Access == (ND_ACCESS_READ|ND_ACCESS_WRITE) ? "RW" :
@@ -872,8 +890,8 @@ print_instruction(
                 Instrux->Operands[i].Access.Access == (ND_ACCESS_READ | ND_ACCESS_COND_WRITE) ? "RCW" :
                 Instrux->Operands[i].Access.Access == (ND_ACCESS_COND_READ|ND_ACCESS_WRITE) ? "CRW" :
                 Instrux->Operands[i].Access.Access == ND_ACCESS_PREFETCH ? "P" : "--",
-                optype_to_string(Instrux->Operands[i].Type), Instrux->Operands[i].Size,
-                Instrux->Operands[i].RawSize, encoding_to_string(Instrux->Operands[i].Encoding)
+                optype_to_string(Instrux->Operands[i].Type), (int)Instrux->Operands[i].Size,
+                (int)Instrux->Operands[i].RawSize, encoding_to_string(Instrux->Operands[i].Encoding)
             );
 
             if (ND_OP_MEM == Instrux->Operands[i].Type)
@@ -955,7 +973,7 @@ print_instruction(
 
                 if (Instrux->Operands[i].Info.Memory.HasDisp)
                 {
-                    printf("Displacement: 0x%016llx, ", Instrux->Operands[i].Info.Memory.Disp);
+                    printf("Displacement: 0x%016llx, ", (unsigned long long)Instrux->Operands[i].Info.Memory.Disp);
                 }
 
                 if (Instrux->Operands[i].Info.Memory.IsVsib)
@@ -970,11 +988,21 @@ print_instruction(
 
             if (ND_OP_REG == Instrux->Operands[i].Type)
             {
-                printf(", RegType: %16s, RegSize: %2d, RegId: %d, RegCount: %d\n",
-                    regtype_to_string(Instrux->Operands[i].Info.Register.Type),
-                    Instrux->Operands[i].Info.Register.Size,
-                    Instrux->Operands[i].Info.Register.Reg,
-                    Instrux->Operands[i].Info.Register.Count);
+                printf(", RegType: %16s, RegSize: %2u, ",
+                       regtype_to_string(Instrux->Operands[i].Info.Register.Type),
+                       Instrux->Operands[i].Info.Register.Size);
+                if (Instrux->Operands[i].Info.Register.Type == ND_REG_MSR)
+                {
+                    printf("RegId: 0x%08x, RegCount: %u\n",
+                        Instrux->Operands[i].Info.Register.Reg,
+                        Instrux->Operands[i].Info.Register.Count);
+                }
+                else
+                {
+                    printf("RegId: %u, RegCount: %u\n",
+                           Instrux->Operands[i].Info.Register.Reg,
+                           Instrux->Operands[i].Info.Register.Count);
+                }
             }
             else
             {
@@ -1148,11 +1176,10 @@ handle_disasm(
     __in PDISASM_OPTIONS Options
     )
 {
-    NDSTATUS status;
     INSTRUX instrux;
     ND_CONTEXT ctx = { 0 };
-    QWORD icount = 0, istart = 0, iend = 0, start = 0, end = 0, itotal = 0;
-    SIZE_T rip = 0, fsize = Options->Size;
+    unsigned long long icount = 0, istart, iend, start, end, itotal = 0;
+    SIZE_T rip, fsize = Options->Size;
     PBYTE buffer = Options->Buffer;
 
     start = clock();
@@ -1169,6 +1196,8 @@ handle_disasm(
     rip = Options->Offset;
     while (rip < Options->Size)
     {
+        NDSTATUS status;
+
         icount++;
 
         istart = __rdtsc();
@@ -1206,7 +1235,7 @@ handle_disasm(
 
     if (Options->Stats)
     {
-        printf("Disassembled %lld instructions in %lldms, %4.4f instructions/second, %4.6f clocks/instruction\n",
+        printf("Disassembled %llu instructions in %llums, %4.4f instructions/second, %4.6f clocks/instruction\n",
             icount, end - start, icount / (double)(end - start) * 1000, itotal / (double)icount);
     }
 }
@@ -1389,12 +1418,12 @@ handle_shemu(
 
     if (fileName == NULL)
     {
-        decFileNameLength = strlen("hex_string_decoded.bin") + 1;
+        decFileNameLength = sizeof("hex_string_decoded.bin");
         fNameDecoded = (char *)malloc(sizeof(char) * decFileNameLength);
     }
     else
     {
-        decFileNameLength = strlen(fileName) + strlen("_decoded.bin") + 1;
+        decFileNameLength = strlen(fileName) + sizeof("_decoded.bin");
         fNameDecoded = (char *)malloc(sizeof(char) * decFileNameLength);
 
     }
@@ -1507,7 +1536,8 @@ handle_shemu(
 
     shstatus = ShemuEmulate(&ctx);
 
-    printf("Emulation terminated with status 0x%08x, flags: 0x%llx, %d NOPs\n", shstatus, ctx.Flags, ctx.NopCount);
+    printf("Emulation terminated with status 0x%08x, flags: 0x%llx, %u NOPs\n", 
+           shstatus, (unsigned long long)ctx.Flags, ctx.NopCount);
     if (ctx.Flags & SHEMU_FLAG_NOP_SLED)
     {
         printf("        SHEMU_FLAG_NOP_SLED\n");
@@ -1629,7 +1659,7 @@ int main(
 
         NdGetVersion(&major, &minor, &revision, &date, &time);
 
-        printf("Napoca Disassembler version %d.%d.%d, built on %s %s\n", major, minor, revision, date, time);
+        printf("Napoca Disassembler version %u.%u.%u, built on %s %s\n", major, minor, revision, date, time);
         printf("Usage: disasm -f file|-h hex-string -b[16|32|64] [-nv] [-iv] [-hl] [-s] [-c] [-shctxf contextfile] "
             "[-reg_name reg_val]\n");
         printf("        -f file          specify input file\n");
@@ -1663,7 +1693,7 @@ int main(
         SetConsoleTextAttribute(GetStdHandle(STD_OUTPUT_HANDLE), FOREGROUND_RED|FOREGROUND_INTENSITY);
         printf("            light red        relative offset, immediate, address\n");
         SetConsoleTextAttribute(GetStdHandle(STD_OUTPUT_HANDLE), FOREGROUND_BLUE|FOREGROUND_GREEN|FOREGROUND_RED);
-        printf("Instrux size: %zx bytes\n", sizeof(INSTRUX));
+        printf("Instrux size: 0x%zx bytes\n", sizeof(INSTRUX));
         ret = -1;
         goto cleanup_and_exit;
     }

@@ -27,7 +27,7 @@ The main objectives of this disassembler are:
 4. Easy to work with - just include the main header file, bddisasm.h, link with the bddisasm library, and call the NdDecode API!
 5. Complete - support every x86 instruction to date, and provide as much information as possible.
 
-## Build
+## Build and install
 
 ### Windows
 
@@ -54,14 +54,39 @@ In order to build the projects on Linux you need:
 
 * gcc
 * make
+* cmake 3.12 or newer (optional)
+
+#### Building and installing with make
+
+In order to build bddisasm and bdshemu run `make` in the root of the repository. The results will be placed in the bin directory.
+
+In order to install bddisasm and bdshemu run `make install`.
+
+#### Building and installing with cmake
+
+```console
+mkdir build
+cd build
+
+cmake ..
+
+make
+make install
+```
+
+The default build type is Release. Using cmake provides support for pkg-config. Other CMake projects can also use `find_package(bddisasm CONFIG REQUIRED)` to find bddisasm. In both cases the following variables will be defined:
+
+* `BDDISASM_INCLUDE_DIRS` - holds the path of the `bddisasm` directory, which contains the public `bddisasm` and `bdshemu` headers.
+* `BDDISASM_LIBRARY_DIRS` - holds the path of the directory that contains the `libbddisasm.a` and `libbdshemu.a` libraries.
+* `BDDISASM_LIBRARIES` - holds the libraries against which integrators should link.
+
+### Building disasmtool_lix
 
 For disasmtool_lix you also need:
 
 * g++
 * cmake 3.12 or newer
 * [RapidJSON](https://github.com/Tencent/rapidjson/)
-
-In order to build bddisasm and bdshemu run `make` in the root of the repository. The results will be placed in the bin directory.
 
 In order to build disasmtool_lix go to the disasmtool_lix directory and run `make`. The results will be in the bin directory in the disasmtool_lix/build directory.
 

@@ -83,8 +83,16 @@ std::string ins_class_to_str(const ND_INS_CLASS cls)
     case ND_INS_ADDSUBPS: return "addsubps";
     case ND_INS_ADOX: return "adox";
     case ND_INS_AESDEC: return "aesdec";
+    case ND_INS_AESDEC128KL: return "aesdec128kl";
+    case ND_INS_AESDEC256KL: return "aesdec256kl";
+    case ND_INS_AESDECWIDE128KL: return "aesdecwide128kl";
+    case ND_INS_AESDECWIDE256KL: return "aesdecwide256kl";
     case ND_INS_AESDECLAST: return "aesdeclast";
     case ND_INS_AESENC: return "aesenc";
+    case ND_INS_AESENC128KL: return "aesenc128kl";
+    case ND_INS_AESENC256KL: return "aesenc256kl";
+    case ND_INS_AESENCWIDE128KL: return "aesencwide128kl";
+    case ND_INS_AESENCWIDE256KL: return "aesencwide256kl";
     case ND_INS_AESENCLAST: return "aesenclast";
     case ND_INS_AESIMC: return "aesimc";
     case ND_INS_AESKEYGENASSIST: return "aeskeygenassist";
@@ -134,7 +142,6 @@ std::string ins_class_to_str(const ND_INS_CLASS cls)
     case ND_INS_CBW: return "cbw";
     case ND_INS_CDQ: return "cdq";
     case ND_INS_CDQE: return "cdqe";
-    case ND_INS_CL1INVMB: return "cl1invmb";
     case ND_INS_CLAC: return "clac";
     case ND_INS_CLC: return "clc";
     case ND_INS_CLD: return "cld";
@@ -207,6 +214,8 @@ std::string ins_class_to_str(const ND_INS_CLASS cls)
     case ND_INS_ENCLS: return "encls";
     case ND_INS_ENCLU: return "enclu";
     case ND_INS_ENCLV: return "enclv";
+    case ND_INS_ENCODEKEY128: return "encodekey128";
+    case ND_INS_ENCODEKEY256: return "encodekey256";
     case ND_INS_ENDBR: return "endbr";
     case ND_INS_ENQCMD: return "enqcmd";
     case ND_INS_ENQCMDS: return "enqcmds";
@@ -380,6 +389,7 @@ std::string ins_class_to_str(const ND_INS_CLASS cls)
     case ND_INS_LLDT: return "lldt";
     case ND_INS_LLWPCB: return "llwpcb";
     case ND_INS_LMSW: return "lmsw";
+    case ND_INS_LOADIWKEY: return "loadiwkey";
     case ND_INS_LODS: return "lods";
     case ND_INS_LOOP: return "loop";
     case ND_INS_LOOPNZ: return "loopnz";
@@ -501,7 +511,6 @@ std::string ins_class_to_str(const ND_INS_CLASS cls)
     case ND_INS_PCMPGTW: return "pcmpgtw";
     case ND_INS_PCMPISTRI: return "pcmpistri";
     case ND_INS_PCMPISTRM: return "pcmpistrm";
-    case ND_INS_PCOMMIT: return "pcommit";
     case ND_INS_PCONFIG: return "pconfig";
     case ND_INS_PDEP: return "pdep";
     case ND_INS_PEXT: return "pext";
@@ -681,6 +690,9 @@ std::string ins_class_to_str(const ND_INS_CLASS cls)
     case ND_INS_SAVEPREVSSP: return "saveprevssp";
     case ND_INS_SBB: return "sbb";
     case ND_INS_SCAS: return "scas";
+    case ND_INS_SEAMOPS: return "seamops";
+    case ND_INS_SEAMCALL: return "seamcall";
+    case ND_INS_SEAMRET: return "seamret";
     case ND_INS_SERIALIZE: return "serialize";
     case ND_INS_SETSSBSY: return "setssbsy";
     case ND_INS_SETcc: return "setcc";
@@ -735,6 +747,7 @@ std::string ins_class_to_str(const ND_INS_CLASS cls)
     case ND_INS_SYSEXIT: return "sysexit";
     case ND_INS_SYSRET: return "sysret";
     case ND_INS_T1MSKC: return "t1mskc";
+    case ND_INS_TDCALL: return "tdcall";
     case ND_INS_TDPBF16PS: return "tdpbf16ps";
     case ND_INS_TDPBSSD: return "tdpbssd";
     case ND_INS_TDPBSUD: return "tdpbsud";
@@ -1525,6 +1538,14 @@ std::string ins_class_to_str(const ND_INS_CLASS cls)
     case ND_INS_XSUSLDTRK: return "xsusldtrk";
     case ND_INS_XSTORE: return "xstore";
     case ND_INS_XTEST: return "xtest";
+    
+    case ND_INS_HRESET: return "hreset";
+    
+    case ND_INS_CLUI: return "clui";
+    case ND_INS_STUI: return "stui";
+    case ND_INS_TESTUI: return "testui";
+    case ND_INS_UIRET: return "uiret";
+    case ND_INS_SENDUIPI: return "senduipi";
     }
 
     return "<unknown>";
@@ -1537,6 +1558,7 @@ std::string ins_cat_to_str(ND_INS_CATEGORY category)
     case ND_CAT_INVALID: return "invalid";
     case ND_CAT_3DNOW: return "3dnow";
     case ND_CAT_AES: return "aes";
+    case ND_CAT_AESKL: return "aeskl";
     case ND_CAT_AMX: return "amx";
     case ND_CAT_ARITH: return "arith";
     case ND_CAT_AVX: return "avx";
@@ -1546,6 +1568,7 @@ std::string ins_cat_to_str(ND_INS_CATEGORY category)
     case ND_CAT_AVX512BF16: return "avx512bf16";
     case ND_CAT_AVX512VBMI: return "avx512vbmi";
     case ND_CAT_AVX512VP2INTERSECT: return "avx512vp2intersect";
+    case ND_CAT_AVXVNNI: return "avxvnni";
     case ND_CAT_BITBYTE: return "bitbyte";
     case ND_CAT_BLEND: return "blend";
     case ND_CAT_BMI1: return "bmi1";
@@ -1567,11 +1590,13 @@ std::string ins_cat_to_str(ND_INS_CATEGORY category)
     case ND_CAT_FMA4: return "fma4";
     case ND_CAT_GATHER: return "gather";
     case ND_CAT_GFNI: return "gfni";
+    case ND_CAT_HRESET: return "hreset";
     case ND_CAT_I386: return "i386";
     case ND_CAT_IFMA: return "ifma";
     case ND_CAT_INTERRUPT: return "interrupt";
     case ND_CAT_IO: return "io";
     case ND_CAT_IOSTRINGOP: return "iostringop";
+    case ND_CAT_KL: return "kl";
     case ND_CAT_KMASK: return "kmask";
     case ND_CAT_KNL: return "knl";
     case ND_CAT_LOGIC: return "logic";
@@ -1612,7 +1637,9 @@ std::string ins_cat_to_str(ND_INS_CATEGORY category)
     case ND_CAT_SYSCALL: return "syscall";
     case ND_CAT_SYSRET: return "sysret";
     case ND_CAT_SYSTEM: return "system";
+    case ND_CAT_TDX: return "tdx";
     case ND_CAT_UD: return "ud";
+    case ND_CAT_UINTR: return "uintr";
     case ND_CAT_UNCOND_BR: return "uncond_br";
     case ND_CAT_UNKNOWN: return "unknown";
     case ND_CAT_VAES: return "vaes";
@@ -1625,6 +1652,7 @@ std::string ins_cat_to_str(ND_INS_CATEGORY category)
     case ND_CAT_VTX: return "vtx";
     case ND_CAT_WAITPKG: return "waitpkg";
     case ND_CAT_WBNOINVD: return "wbnoinvd";
+    case ND_CAT_WIDE_KL: return "wide_kl";
     case ND_CAT_WIDENOP: return "widenop";
     case ND_CAT_X87_ALU: return "x87_alu";
     case ND_CAT_XOP: return "xop";
@@ -1665,6 +1693,7 @@ std::string ins_set_to_str(ND_INS_SET ins_set)
     case ND_SET_AVX512VNNI: return "avx512vnni";
     case ND_SET_AVX512VP2INTERSECT: return "avx512vp2intersect";
     case ND_SET_AVX512VPOPCNTDQ: return "avx512vpopcntdq";
+    case ND_SET_AVXVNNI: return "avxvnni";
     case ND_SET_BMI1: return "bmi1";
     case ND_SET_BMI2: return "bmi2";
     case ND_SET_CET_SS: return "cet_ss";
@@ -1683,6 +1712,7 @@ std::string ins_set_to_str(ND_INS_SET ins_set)
     case ND_SET_FMA4: return "fma4";
     case ND_SET_FXSAVE: return "fxsave";
     case ND_SET_GFNI: return "gfni";
+    case ND_SET_HRESET: return "hreset";
     case ND_SET_I186: return "i186";
     case ND_SET_INVLPGB: return "invlpgb";
     case ND_SET_I286PROT: return "i286prot";
@@ -1693,6 +1723,7 @@ std::string ins_set_to_str(ND_INS_SET ins_set)
     case ND_SET_I64: return "i64";
     case ND_SET_I86: return "i86";
     case ND_SET_INVPCID: return "invpcid";
+    case ND_SET_KL: return "kl";
     case ND_SET_LONGMODE: return "longmode";
     case ND_SET_LWP: return "lwp";
     case ND_SET_LZCNT: return "lzcnt";
@@ -1705,7 +1736,6 @@ std::string ins_set_to_str(ND_INS_SET ins_set)
     case ND_SET_MWAITT: return "mwaitt";
     case ND_SET_PAUSE: return "pause";
     case ND_SET_PCLMULQDQ: return "pclmulqdq";
-    case ND_SET_PCOMMIT: return "pcommit";
     case ND_SET_PCONFIG: return "pconfig";
     case ND_SET_PENTIUMREAL: return "pentiumreal";
     case ND_SET_PKU: return "pku";
@@ -1720,7 +1750,6 @@ std::string ins_set_to_str(ND_INS_SET ins_set)
     case ND_SET_RDSEED: return "rdseed";
     case ND_SET_RDTSCP: return "rdtscp";
     case ND_SET_RDWRFSGS: return "rdwrfsgs";
-    case ND_SET_SCC: return "scc";
     case ND_SET_SERIALIZE: return "serialize";
     case ND_SET_SGX: return "sgx";
     case ND_SET_SHA: return "sha";
@@ -1736,9 +1765,11 @@ std::string ins_set_to_str(ND_INS_SET ins_set)
     case ND_SET_SSSE3: return "ssse3";
     case ND_SET_SVM: return "svm";
     case ND_SET_TBM: return "tbm";
+    case ND_SET_TDX: return "tdx";
     case ND_SET_TSX: return "tsx";
     case ND_SET_TSXLDTRK: return "tsxldtrk";
     case ND_SET_UD: return "ud";
+    case ND_SET_UINTR: return "uintr";
     case ND_SET_UNKNOWN: return "unknown";
     case ND_SET_VAES: return "vaes";
     case ND_SET_VPCLMULQDQ: return "vpclmulqdq";
@@ -1834,6 +1865,8 @@ std::string reg_to_str(const int reg, const ND_REG_TYPE type)
         return "flg";
     case ND_REG_RIP:
         return "rip";
+    case ND_REG_UIF:
+        return "uif";
     }
 
     return "<u>";
@@ -1885,6 +1918,8 @@ std::string reg_type_to_str(const ND_REG_TYPE type)
         return "flg";
     case ND_REG_RIP:
         return "rip";
+    case ND_REG_UIF:
+        return "uif";
     }
 
     return "<unknown>";
