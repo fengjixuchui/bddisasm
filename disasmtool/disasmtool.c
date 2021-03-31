@@ -7,6 +7,7 @@
 #include <stdint.h>
 #include <stdbool.h>
 #include <time.h>
+#include <Intrin.h>
 
 typedef uint64_t    QWORD, *PQWORD;
 
@@ -61,6 +62,7 @@ char *gSpaces[16] =
 };
 
 
+#if !defined(BDDISASM_HAS_VSNPRINTF)
 //
 // nd_vsnprintf
 //
@@ -74,12 +76,14 @@ int nd_vsnprintf_s(
 {
     return _vsnprintf_s(buffer, sizeOfBuffer, count, format, argptr);
 }
+#endif // !defined(BDDISASM_HAS_VSNPRINTF)
 
+#if !defined(BDDISASM_HAS_MEMSET)
 void* nd_memset(void *s, int c, size_t n)
 {
     return memset(s, c, n);
 }
-
+#endif // !defined(BDDISASM_HAS_MEMSET)
 
 //
 // set_to_string
@@ -133,6 +137,7 @@ const char* set_to_string(
     case ND_SET_F16C:                  return "F16C";
     case ND_SET_FMA:                   return "FMA";
     case ND_SET_FMA4:                  return "FMA4";
+    case ND_SET_FRED:                  return "FRED";
     case ND_SET_FXSAVE:                return "FXSAVE";
     case ND_SET_GFNI:                  return "GFNI";
     case ND_SET_HRESET:                return "HRESET";
@@ -147,6 +152,7 @@ const char* set_to_string(
     case ND_SET_INVPCID:               return "INVPCID";
     case ND_SET_INVLPGB:               return "INVLPGB";
     case ND_SET_KL:                    return "KL";
+    case ND_SET_LKGS:                  return "LKGS";
     case ND_SET_LONGMODE:              return "LONGMODE";
     case ND_SET_LWP:                   return "LWP";
     case ND_SET_LZCNT:                 return "LZCNT";
@@ -250,6 +256,7 @@ const char* category_to_string(
     case ND_CAT_EXPAND:               return "EXPAND";
     case ND_CAT_FLAGOP:               return "FLAGOP";
     case ND_CAT_FMA4:                 return "FMA4";
+    case ND_CAT_FRED:                 return "FRED";
     case ND_CAT_GATHER:               return "GATHER";
     case ND_CAT_GFNI:                 return "GFNI";
     case ND_CAT_HRESET:               return "HRESET";
@@ -261,6 +268,7 @@ const char* category_to_string(
     case ND_CAT_KL:                   return "KL";
     case ND_CAT_KMASK:                return "KMASK";
     case ND_CAT_KNL:                  return "KNL";
+    case ND_CAT_LKGS:                 return "LKGS";
     case ND_CAT_LOGIC:                return "LOGIC";
     case ND_CAT_LOGICAL:              return "LOGICAL";
     case ND_CAT_LOGICAL_FP:           return "LOGICAL_FP";
