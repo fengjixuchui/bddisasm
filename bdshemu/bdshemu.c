@@ -10,7 +10,12 @@
 #include "nd_crt.h"
 #include "bddisasm.h"
 #include "bdshemu.h"
+
+#ifdef __clang__
+#include <wmmintrin.h>
+#else
 #include <immintrin.h>
+#endif // __clang__
 
 //
 // A generic emulator value.
@@ -103,6 +108,7 @@ enum
 //
 // ShemuPrintf - simple version
 //
+#ifndef BDDISASM_NO_FORMAT
 static void
 shemu_printf(
     SHEMU_CONTEXT *Context,
@@ -127,6 +133,9 @@ shemu_printf(
 
     Context->Log(buff);
 }
+#else
+#define shemu_printf(Context, formatstring, ...)
+#endif // !BDDISASM_NO_FORMAT
 
 
 //
@@ -1031,6 +1040,12 @@ ShemuSetMemValue(
     {
         addr = Context->Shellcode;
         offset = (uint32_t)(Gla - Context->ShellcodeBase);
+
+        // Bypass self-writes, if needed to.
+        if (!!(Context->Options & SHEMU_OPT_BYPASS_SELF_WRITES))
+        {
+            return SHEMU_SUCCESS;
+        }
     }
     else if (ShemuIsStackPtr(Context, Gla, Size))
     {
