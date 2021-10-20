@@ -12,7 +12,8 @@
 #endif
 
 #if defined(_MSC_VER)
-#include <vadefs.h>
+
+typedef char * va_list;
 
 # ifndef _ADDRESSOF
 #  ifdef  __cplusplus
@@ -25,6 +26,8 @@
 # ifndef KERNEL_MODE
 
 #  if defined(AMD64) || defined(WIN64)
+
+extern void __cdecl __va_start(__out va_list *, ...);       // is this exported by VC compiler?
 
 #   define _crt_va_start(ap, x)    ( __va_start(&ap, x) )
 #   define _crt_va_arg(ap, t)      ( ( sizeof(t) > sizeof(QWORD) || ( sizeof(t) & (sizeof(t) - 1) ) != 0 ) \
@@ -86,5 +89,12 @@ nd_strcat_s(
 extern void *nd_memset(void *s, int c, size_t n);
 
 #define nd_memzero(Dest, Size)         nd_memset((Dest), 0, (Size))
+
+
+// Handy macros.
+#define RET_EQ(x, y, z)     if ((x) == (y)) { return (z); }
+#define RET_GE(x, y, z)     if ((x) >= (y)) { return (z); }
+#define RET_GT(x, y, z)     if ((x) >  (y)) { return (z); }
+
 
 #endif // ND_CRT_H

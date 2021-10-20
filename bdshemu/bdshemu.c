@@ -1187,74 +1187,89 @@ ShemuGetOperandValue(
     else if (op->Type == ND_OP_MEM)
     {
         uint64_t gla = ShemuComputeLinearAddress(Context, op);
+        uint32_t offset;
+        uint8_t seg;
 
         if (op->Info.Memory.IsAG)
         {
             // Address generation instruction, the result is the linear address itself.
             Value->Value.Qwords[0] = gla;
+            goto done_gla;
+        }
+
+        if (Context->Ring == 3)
+        {
+            // User-mode TIB offset that contains the PEB address.
+            offset = Context->Mode == ND_CODE_32 ? 0x30 : 0x60;
+            seg = Context->Mode == ND_CODE_32 ? ND_PREFIX_G2_SEG_FS : ND_PREFIX_G2_SEG_GS;
         }
         else
         {
-            uint32_t offset;
-            uint8_t seg;
-
-            if (Context->Ring == 3)
-            {
-                // User-mode TIB offset that contains the PEB address.
-                offset = Context->Mode == ND_CODE_32 ? 0x30 : 0x60;
-                seg = Context->Mode == ND_CODE_32 ? ND_PREFIX_G2_SEG_FS : ND_PREFIX_G2_SEG_GS;
-            }
-            else
-            {
-                // Kernel-mode KPCR offset that contains the current KTHREAD address.
-                offset = Context->Mode == ND_CODE_32 ? 0x124 : 0x188;
-                seg = Context->Mode == ND_CODE_32 ? ND_PREFIX_G2_SEG_FS : ND_PREFIX_G2_SEG_GS;
-            }
-
-            // Check if this is a TIB/PCR access. Make sure the FS/GS register is used for the access, in order to avoid
-            // false positives where legitimate code accesses a linear TIB directly.
-            if (gla == Context->TibBase + offset && Context->Instruction.Seg == seg)
-            {
-                Context->Flags |= SHEMU_FLAG_TIB_ACCESS;
-            }
-
-            // Check if we are reading a previously saved RIP. Ignore RET category, which naturally uses the saved RIP.
-            // Also, ignore RMW instruction which naturally read the current value - this could happen if the code
-            // modifies the return value, for example "ADD qword [rsp], r8".
-            if (Context->Instruction.Category != ND_CAT_RET && !(op->Access.Access & ND_ACCESS_ANY_WRITE) &&
-                ShemuIsStackPtr(Context, gla, op->Size) &&
-                ShemuAnyBitsSet(STACKBMP(Context), gla - Context->StackBase, op->Size))
-            {
-                Context->Flags |= SHEMU_FLAG_LOAD_RIP;
-            }
-
-            // Get the memory value.
-            status = ShemuGetMemValue(Context, gla, Value->Size, Value->Value.Bytes);
-            if (SHEMU_SUCCESS != status)
-            {
-                return status;
-            }
-
-            // If this is a stack access, we need to update the stack pointer.
-            if (op->Info.Memory.IsStack)
-            {
-                uint64_t regval = ShemuGetGprValue(Context, NDR_RSP, (2 << Context->Instruction.DefStack), false);
-
-                regval += op->Size;
-
-                ShemuSetGprValue(Context, NDR_RSP, (2 << Context->Instruction.DefStack), regval, false);
-            }
-
-            // If this is a string operation, make sure we update RSI/RDI.
-            if (op->Info.Memory.IsString)
-            {
-                uint64_t regval = ShemuGetGprValue(Context, op->Info.Memory.Base, op->Info.Memory.BaseSize, false);
-
-                regval = GET_FLAG(Context, NDR_RFLAG_DF) ? regval - op->Size : regval + op->Size;
-
-                ShemuSetGprValue(Context, op->Info.Memory.Base, op->Info.Memory.BaseSize, regval, false);
-            }
+            // Kernel-mode KPCR offset that contains the current KTHREAD address.
+            offset = Context->Mode == ND_CODE_32 ? 0x124 : 0x188;
+            seg = Context->Mode == ND_CODE_32 ? ND_PREFIX_G2_SEG_FS : ND_PREFIX_G2_SEG_GS;
         }
+
+        // Check if this is a TIB/PCR access. Make sure the FS/GS register is used for the access, in order to avoid
+        // false positives where legitimate code accesses a linear TIB directly.
+        // Note that this covers accesses to the PEB field inside the TIB.
+        if (gla == Context->TibBase + offset && Context->Instruction.Seg == seg)
+        {
+            Context->Flags |= SHEMU_FLAG_TIB_ACCESS;
+        }
+
+        // Note that this covers accesses to the Wow32Reserved in Wow64 mode. That field can be used to issue
+        // syscalls.
+        if (gla == Context->TibBase + 0xC0 && Context->Instruction.Seg == seg && Context->Mode == ND_CODE_32)
+        {
+            Context->Flags |= SHEMU_FLAG_TIB_ACCESS_WOW32;
+        }
+
+        // Check for accesses inside the KUSER_SHARED_DATA (SharedUserData). This page contains some
+        // global system information, it may host shellcodes, and is hard-coded at this address.
+        if (gla >= 0x7FFE0000 && gla < 0x7FFE1000)
+        {
+            Context->Flags |= SHEMU_FLAG_SUD_ACCESS;
+        }
+
+        // Check if we are reading a previously saved RIP. Ignore RET category, which naturally uses the saved RIP.
+        // Also, ignore RMW instruction which naturally read the current value - this could happen if the code
+        // modifies the return value, for example "ADD qword [rsp], r8".
+        if (Context->Instruction.Category != ND_CAT_RET && !(op->Access.Access & ND_ACCESS_ANY_WRITE) &&
+            ShemuIsStackPtr(Context, gla, op->Size) &&
+            ShemuAnyBitsSet(STACKBMP(Context), gla - Context->StackBase, op->Size))
+        {
+            Context->Flags |= SHEMU_FLAG_LOAD_RIP;
+        }
+
+        // Get the memory value.
+        status = ShemuGetMemValue(Context, gla, Value->Size, Value->Value.Bytes);
+        if (SHEMU_SUCCESS != status)
+        {
+            return status;
+        }
+
+        // If this is a stack access, we need to update the stack pointer.
+        if (op->Info.Memory.IsStack)
+        {
+            uint64_t regval = ShemuGetGprValue(Context, NDR_RSP, (2 << Context->Instruction.DefStack), false);
+
+            regval += op->Size;
+
+            ShemuSetGprValue(Context, NDR_RSP, (2 << Context->Instruction.DefStack), regval, false);
+        }
+
+        // If this is a string operation, make sure we update RSI/RDI.
+        if (op->Info.Memory.IsString)
+        {
+            uint64_t regval = ShemuGetGprValue(Context, op->Info.Memory.Base, op->Info.Memory.BaseSize, false);
+
+            regval = GET_FLAG(Context, NDR_RFLAG_DF) ? regval - op->Size : regval + op->Size;
+
+            ShemuSetGprValue(Context, op->Info.Memory.Base, op->Info.Memory.BaseSize, regval, false);
+        }
+
+done_gla:;
     }
     else if (op->Type == ND_OP_IMM)
     {
@@ -1295,6 +1310,12 @@ ShemuSetOperandValue(
         switch (op->Info.Register.Type)
         {
         case ND_REG_GPR:
+            if (Context->Instruction.Instruction == ND_INS_XCHG &&
+                op->Info.Register.Reg == NDR_RSP)
+            {
+                Context->Flags |= SHEMU_FLAG_STACK_PIVOT;
+            }
+
             ShemuSetGprValue(Context, op->Info.Register.Reg, op->Size, Value->Value.Qwords[0], 
                              op->Info.Register.IsHigh8);
             break;
@@ -1672,8 +1693,18 @@ ShemuPrintContext(
         Context->Registers.RegR8, Context->Registers.RegR9, Context->Registers.RegR10, Context->Registers.RegR11);
     shemu_printf(Context, "        R12 = 0x%016llx R13 = 0x%016llx R14 = 0x%016llx R15 = 0x%016llx\n",
         Context->Registers.RegR12, Context->Registers.RegR13, Context->Registers.RegR14, Context->Registers.RegR15);
-    shemu_printf(Context, "        RIP = 0x%016llx RFLAGS = 0x%016llx\n", 
+    shemu_printf(Context, "        RIP = 0x%016llx RFLAGS = 0x%016llx ", 
         Context->Registers.RegRip, Context->Registers.RegFlags);
+    shemu_printf(Context, "  CF:%d PF:%d AF:%d ZF:%d SF:%d TF:%d IF:%d DF:%d OF:%d\n",
+        GET_FLAG(Context, NDR_RFLAG_CF),
+        GET_FLAG(Context, NDR_RFLAG_PF),
+        GET_FLAG(Context, NDR_RFLAG_AF),
+        GET_FLAG(Context, NDR_RFLAG_ZF),
+        GET_FLAG(Context, NDR_RFLAG_SF),
+        GET_FLAG(Context, NDR_RFLAG_TF),
+        GET_FLAG(Context, NDR_RFLAG_IF),
+        GET_FLAG(Context, NDR_RFLAG_DF),
+        GET_FLAG(Context, NDR_RFLAG_OF));
 
     shemu_printf(Context, "Emulating: 0x%016llx %s\n", Context->Registers.RegRip, text);
 }
@@ -1689,6 +1720,8 @@ ShemuEmulate(
 {
     SHEMU_VALUE res = { 0 }, dst = { 0 }, src = { 0 }, rcx = { 0 }, aux = { 0 };
     bool stop = false, cf;
+    uint16_t cs = 0;
+    uint64_t tsc = 0x1248fe7a5c30;
 
     if (NULL == Context)
     {
@@ -1730,6 +1763,15 @@ ShemuEmulate(
         NDSTATUS ndstatus;
         uint64_t rip;
         uint32_t i;
+
+        tsc++;
+
+        // Reset all the operands to 0.
+        nd_memzero(&dst, sizeof(dst));
+        nd_memzero(&src, sizeof(src));
+        nd_memzero(&res, sizeof(res));
+        nd_memzero(&aux, sizeof(aux));
+        nd_memzero(&rcx, sizeof(rcx));
 
         // The stop flag has been set, this means we've reached a valid instruction, but that instruction cannot be
         // emulated (for example, SYSCALL, INT, system instructions, etc).
@@ -2204,9 +2246,14 @@ ShemuEmulate(
             break;
 
         case ND_INS_NEG:
-            GET_OP(Context, 0, &dst);
-            dst.Value.Qwords[0] = 0 - dst.Value.Qwords[0];
-            SET_OP(Context, 0, &dst);
+            GET_OP(Context, 0, &src);
+            dst.Size = src.Size;
+            dst.Value.Qwords[0] = 0;
+            res.Size = src.Size;
+            res.Value.Qwords[0] = dst.Value.Qwords[0] - src.Value.Qwords[0];
+            SET_OP(Context, 0, &res);
+            SET_FLAGS(Context, res, dst, src, FM_SUB);
+            SET_FLAG(Context, NDR_RFLAG_CF, src.Value.Qwords[0] != 0);
             break;
 
         case ND_INS_BT:
@@ -2328,6 +2375,68 @@ ShemuEmulate(
                 aux.Value.Qwords[0] += Context->Instruction.Operands[0].Info.Immediate.Imm;
                 SET_OP(Context, 2, &aux);
             }
+            break;
+
+        case ND_INS_JMPFD:
+        case ND_INS_CALLFD:
+            cs = (uint16_t)Context->Instruction.Operands[0].Info.Address.BaseSeg;
+            goto check_far_branch;
+
+        case ND_INS_JMPFI:
+        case ND_INS_CALLFI:
+        case ND_INS_IRET:
+        case ND_INS_RETF:
+            if (Context->Instruction.Instruction == ND_INS_RETF)
+            {
+                if (Context->Instruction.Operands[0].Type == ND_OP_IMM)
+                {
+                    // RETF imm
+                    GET_OP(Context, 3, &src);
+                }
+                else
+                {
+                    // RETF
+                    GET_OP(Context, 2, &src);
+                }
+            }
+            else if (Context->Instruction.Instruction == ND_INS_IRET)
+            {
+                // IRET
+                 GET_OP(Context, 2, &src);
+            }
+            else
+            {
+                // JMP/CALL far
+                GET_OP(Context, 0, &src);
+            }
+
+            // The destination code segment is the second WORD/DWORD/QWORD.
+            switch (Context->Instruction.WordLength)
+            {
+            case 2:
+                cs = (uint16_t)src.Value.Words[1];
+                break;
+            case 4:
+                cs = (uint16_t)src.Value.Dwords[1];
+                break;
+            case 8:
+                cs = (uint16_t)src.Value.Qwords[1];
+                break;
+            default:
+                cs = 0;
+                break;
+            }
+
+check_far_branch:
+            if (Context->Mode == ND_CODE_32 && cs == 0x33)
+            {
+                Context->Flags |= SHEMU_FLAG_HEAVENS_GATE;
+            }
+
+            // We may, in the future, emulate far branches, but they imply some tricky context switches (including
+            // the default TEB), so it may not be as straight forward as it seems. For now, all we wish to achieve 
+            // is detection of far branches in long-mode, from Wow 64.
+            stop = true;
             break;
 
         case ND_INS_LODS:
@@ -2962,6 +3071,17 @@ ShemuEmulate(
             stop = true;
             break;
 
+        case ND_INS_SIDT:
+            if (Context->Ring == 0)
+            {
+                // Flag this only in ring0, as we treat the SHEMU_FLAG_SIDT as a ring0 specific indicator - it can be
+                // used to locate the kernel image.
+                Context->Flags |= SHEMU_FLAG_SIDT;
+            }
+
+            stop = true;
+            break;
+
         case ND_INS_AESIMC:
         case ND_INS_AESDEC:
         case ND_INS_AESDECLAST:
@@ -2999,6 +3119,16 @@ ShemuEmulate(
             SET_OP(Context, 0, &dst);
             break;
         }
+
+        case ND_INS_RDTSC:
+            src.Size = 4;
+            // Set EAX to lower 32 bits.
+            src.Value.Dwords[0] = tsc & 0xFFFFFFFF;
+            SET_OP(Context, 0, &src);
+            // Set EDX to upper 32 bits.
+            src.Value.Dwords[0] = tsc >> 32;
+            SET_OP(Context, 1, &src);
+            break;
 
 
         default:
