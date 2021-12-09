@@ -455,16 +455,39 @@ typedef uint32_t ND_REG_SIZE;
 #define ND_SAE_SUPPORT(ix)          (!!((ix)->ValidDecorators.Sae))
 #define ND_BROADCAST_SUPPORT(ix)    (!!((ix)->ValidDecorators.Broadcast))
 
-// Generates a unique ID per register type, size and reg.
-#define ND_OP_REG_ID(op)            (((op)->Type << 24) | ((op)->Info.Register.Type << 16) | \
-                                     ((op)->Info.Register.Size << 8) | ((op)->Info.Register.Reg))
+// Generates a unique ID per register type, size and reg. The layout is the following:
+//  - bits [63, 60] (4 bits)    - the operand type (ND_OP_REG)
+//  - bits [59, 52] (8 bits)    - the register type
+//  - bits [51, 36] (16 bits)   - the register size, in bytes
+//  - bits [35, 30] (6 bits)    - the number of registers accessed starting with this reg (for block addressing)
+//  - bits [29, 9] (21 bits)    - reserved
+//  - bit 8                     - High8 indicator: indicates whether the reg is AH/CH/DH/BH
+//  - bits [7, 0] (8 bits)      - the register ID
+#define ND_OP_REG_ID(op)            (((uint64_t)((op)->Type & 0xF) << 60) |                                 \
+                                     ((uint64_t)((op)->Info.Register.Type & 0xFF) << 52) |                  \
+                                     ((uint64_t)((op)->Info.Register.Size & 0xFFFF) << 36) |                \
+                                     ((uint64_t)((op)->Info.Register.Count & 0x3F) << 30) |                 \
+                                     ((uint64_t)((op)->Info.Register.IsHigh8 & 0x1) << 8) |                 \
+                                     ((uint64_t)((op)->Info.Register.Reg)))
 
 // Example: ND_IS_OP_REG(op, ND_REG_GPR, 4, REG_ESP)
 // Example: ND_IS_OP_REG(op, ND_REG_CR,  8, REG_CR3)
 // Example: ND_IS_OP_REG(op, ND_REG_RIP, 8, 0)
 
 // Checks if the indicated operand op is a register of type t, with size s and index r.
-#define ND_IS_OP_REG(op, t, s, r)   ((uint32_t)(ND_OP_REG_ID(op)) == (uint32_t)((ND_OP_REG << 24)|(t << 16)|(s << 8)|(r)))
+#define ND_IS_OP_REG(op, t, s, r)   (ND_OP_REG_ID(op) == (((uint64_t)(ND_OP_REG) << 60) |                   \
+                                                          ((uint64_t)((t) & 0xFF) << 52) |                  \
+                                                          ((uint64_t)((s) & 0xFFFF) << 36) |                \
+                                                          ((uint64_t)(1) << 30) |                           \
+                                                          ((uint64_t)(r))))
+
+// Checks if the indicated operand op is a register of type t, with size s and index r.
+#define ND_IS_OP_REG_EX(op, t, s, r, b, h)   (ND_OP_REG_ID(op) == (((uint64_t)(ND_OP_REG) << 60) |          \
+                                                          ((uint64_t)((t) & 0xFF) << 52) |                  \
+                                                          ((uint64_t)((s) & 0xFFFF) << 36) |                \
+                                                          ((uint64_t)((b) & 0x3F) << 30) |                  \
+                                                          ((uint64_t)((h) & 0x1) << 8) |                    \
+                                                          ((uint64_t)(r))))
 
 // Checjs if the indicated operand is the stack.
 #define ND_IS_OP_STACK(op)          ((op)->Type == ND_OP_MEM && (op)->Info.Memory.IsStack)
@@ -667,35 +690,6 @@ typedef enum _ND_EX_TYPE_AMX
     ND_EXT_AMX_E5,
     ND_EXT_AMX_E6,
 } ND_EX_TYPE_AMX;
-
-
-//
-// Operands access map. Contains every register except for MSR & XCR, includes memory, flags, RIP, stack.
-// Use NdGetFullAccessMap to populate this structure.
-//
-typedef struct _ND_ACCESS_MAP
-{
-    uint8_t         RipAccess;
-    uint8_t         FlagsAccess;
-    uint8_t         StackAccess;
-    uint8_t         MemAccess;
-    uint8_t         MxcsrAccess;
-    uint8_t         PkruAccess;
-    uint8_t         SspAccess;
-    uint8_t         GprAccess[ND_MAX_GPR_REGS];
-    uint8_t         SegAccess[ND_MAX_SEG_REGS];
-    uint8_t         FpuAccess[ND_MAX_FPU_REGS];
-    uint8_t         MmxAccess[ND_MAX_MMX_REGS];
-    uint8_t         SseAccess[ND_MAX_SSE_REGS];
-    uint8_t         CrAccess [ND_MAX_CR_REGS ];
-    uint8_t         DrAccess [ND_MAX_DR_REGS ];
-    uint8_t         TrAccess [ND_MAX_TR_REGS ];
-    uint8_t         BndAccess[ND_MAX_BND_REGS];
-    uint8_t         MskAccess[ND_MAX_MSK_REGS];
-    uint8_t         SysAccess[ND_MAX_SYS_REGS];
-    uint8_t         X87Access[ND_MAX_X87_REGS];
-} ND_ACCESS_MAP, *PND_ACCESS_MAP;
-
 
 
 //
@@ -1232,6 +1226,18 @@ typedef struct _ND_FPU_FLAGS
 
 
 //
+// Branch information.
+//
+typedef struct _ND_BRANCH_INFO
+{
+    uint8_t         IsBranch : 1;
+    uint8_t         IsConditional : 1;
+    uint8_t         IsIndirect : 1;
+    uint8_t         IsFar : 1;
+} ND_BRANCH_INFO;
+
+
+//
 // Describes a decoded instruction. All the possible information about the instruction is contained in this structure.
 // You don't have to call any other APIs to gather any more info about it.
 //
@@ -1394,9 +1400,12 @@ typedef struct _INSTRUX
     ND_OPERAND          Operands[ND_MAX_OPERAND];   // Instruction operands.
 
     // As extracted from the operands themselves.
+    uint8_t             CsAccess;                   // CS access mode (read/write). Includes only implicit CS accesses.
     uint8_t             RipAccess;                  // RIP access mode (read/write).
     uint8_t             StackAccess;                // Stack access mode (push/pop).
     uint8_t             MemoryAccess;               // Memory access mode (read/write, including stack or shadow stack).
+
+    ND_BRANCH_INFO      BranchInfo;                 // Branch information.
 
     struct
     {
@@ -1429,11 +1438,9 @@ typedef struct _INSTRUX
     ND_VALID_MODES      ValidModes;                 // Valid CPU modes for the instruction.
     ND_VALID_PREFIXES   ValidPrefixes;              // Indicates which prefixes are valid for this instruction.
     ND_VALID_DECORATORS ValidDecorators;            // What decorators are accepted by the instruction.
-    uint8_t             Reserved1[3];               // Padding purpose. Aligns the mnemonic to 8 bytes.
     char                Mnemonic[ND_MAX_MNEMONIC_LENGTH];   // Instruction mnemonic.
     uint8_t             OpCodeBytes[3];             // Opcode bytes - escape codes and main op code
     uint8_t             PrimaryOpCode;              // Main/nominal opcode
-    uint32_t            Reserved2;                  // Padding purpose. Aligns the InstructionBytes to 16 bytes.
     uint8_t             InstructionBytes[16];       // The entire instruction.
 
 } INSTRUX, *PINSTRUX;
@@ -1452,6 +1459,76 @@ typedef struct _ND_CONTEXT
     uint64_t FeatMode : 8;      // Supported features mask. A combination of ND_FEAT_* values.
     uint64_t Reserved : 40;     // Reserved for future use.
 } ND_CONTEXT;
+
+
+//
+// Operands access map. Contains every register except for MSR & XCR, includes memory, flags, RIP, stack.
+// Use NdGetFullAccessMap to populate this structure.
+//
+typedef struct _ND_ACCESS_MAP
+{
+    uint8_t         RipAccess;
+    uint8_t         FlagsAccess;
+    uint8_t         StackAccess;
+    uint8_t         MemAccess;
+    uint8_t         MxcsrAccess;
+    uint8_t         PkruAccess;
+    uint8_t         SspAccess;
+    uint8_t         GprAccess[ND_MAX_GPR_REGS];
+    uint8_t         SegAccess[ND_MAX_SEG_REGS];
+    uint8_t         FpuAccess[ND_MAX_FPU_REGS];
+    uint8_t         MmxAccess[ND_MAX_MMX_REGS];
+    uint8_t         SseAccess[ND_MAX_SSE_REGS];
+    uint8_t         CrAccess [ND_MAX_CR_REGS ];
+    uint8_t         DrAccess [ND_MAX_DR_REGS ];
+    uint8_t         TrAccess [ND_MAX_TR_REGS ];
+    uint8_t         BndAccess[ND_MAX_BND_REGS];
+    uint8_t         MskAccess[ND_MAX_MSK_REGS];
+    uint8_t         TmmAccess[ND_MAX_TILE_REGS];
+    uint8_t         SysAccess[ND_MAX_SYS_REGS];
+    uint8_t         X87Access[ND_MAX_X87_REGS];
+} ND_ACCESS_MAP, *PND_ACCESS_MAP;
+
+
+//
+// Operand reverse-lookup table. Each entry inside this structure contains the pointer to the relevant operand.
+// Some rules govern this special structure:
+//  - It is not generated by default. The user must call NdGetOperandRlut manually to fill in this structure.
+//  - This structure holds pointers inside the INSTRUX provided to the NdGetOperandRlut function; please make sure
+//    you call NdGetOperandRlut again if the INSTRUX is relocated, as all the pointers will dangle.
+//  - Not all the operand types have a corresponding entry in ND_OPERAND_RLUT, only the usual ones.
+//  - Some operands may have multiple entries in ND_OPERAND_RLUT - for example, RMW (read-modify-write) instructions
+//    will have Dst1 and Src1 pointing to the same operand.
+//  - The implicit registers entries in ND_OPERAND_RLUT will point to the operand which is of that type, and implicit;
+//    for example, ND_OPERAND_RLUT.Rax will be NULL for `add rax, rcx`, since in this case, `rax` is not an implicit
+//    operand. For `cpuid`, however, ND_OPERAND_RLUT.Rax will point to the implicit `eax` register.
+// Use NdGetOperandRlut to populate this structure.
+//
+typedef struct _ND_OPERAND_RLUT
+{
+    PND_OPERAND     Dst1;   // First destination operand.
+    PND_OPERAND     Dst2;   // Second destination operand.
+    PND_OPERAND     Src1;   // First source operand.
+    PND_OPERAND     Src2;   // Second source operand.
+    PND_OPERAND     Src3;   // Third source operand.
+    PND_OPERAND     Src4;   // Fourth source operand.
+    PND_OPERAND     Mem1;   // First memory operand.
+    PND_OPERAND     Mem2;   // Second memory operand.
+    PND_OPERAND     Stack;  // Stack operand.
+    PND_OPERAND     Flags;  // Flags register operand.
+    PND_OPERAND     Rip;    // Instruction Pointer register operand.
+    PND_OPERAND     Cs;     // Implicit CS operand.
+    PND_OPERAND     Ss;     // Implicit SS operand.
+    PND_OPERAND     Rax;    // Implicit accumulator register operand.
+    PND_OPERAND     Rcx;    // Implicit counter register operand.
+    PND_OPERAND     Rdx;    // Implicit data register operand
+    PND_OPERAND     Rbx;    // Implicit base address register operand.
+    PND_OPERAND     Rsp;    // Implicit stack pointer operand.
+    PND_OPERAND     Rbp;    // Implicit base pointer operand.
+    PND_OPERAND     Rsi;    // Implicit source index operand.
+    PND_OPERAND     Rdi;    // Implicit destination index operand.
+} ND_OPERAND_RLUT;
+
 
 
 #ifdef __cplusplus 
@@ -1558,6 +1635,15 @@ NDSTATUS
 NdGetFullAccessMap(
     const INSTRUX *Instrux,
     ND_ACCESS_MAP *AccessMap
+    );
+
+//
+// Returns an operand reverse-lookup. One can use the Rlut to quickly reference different kinds of operands in INSTRUX.
+//
+NDSTATUS
+NdGetOperandRlut(
+    const INSTRUX *Instrux,
+    ND_OPERAND_RLUT *Rlut
     );
 
 //

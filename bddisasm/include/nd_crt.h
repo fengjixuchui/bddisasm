@@ -12,8 +12,7 @@
 #endif
 
 #if defined(_MSC_VER)
-
-typedef char * va_list;
+#include <vadefs.h>
 
 # ifndef _ADDRESSOF
 #  ifdef  __cplusplus
@@ -23,11 +22,9 @@ typedef char * va_list;
 #  endif  // __cplusplus
 # endif // !_ADDRESSOF
 
-# ifndef KERNEL_MODE
+# ifndef _KERNEL_MODE
 
 #  if defined(AMD64) || defined(WIN64)
-
-extern void __cdecl __va_start(__out va_list *, ...);       // is this exported by VC compiler?
 
 #   define _crt_va_start(ap, x)    ( __va_start(&ap, x) )
 #   define _crt_va_arg(ap, t)      ( ( sizeof(t) > sizeof(QWORD) || ( sizeof(t) & (sizeof(t) - 1) ) != 0 ) \
@@ -54,7 +51,7 @@ extern void __cdecl __va_start(__out va_list *, ...);       // is this exported 
 # define va_arg _crt_va_arg
 # define va_end _crt_va_end
 
-#endif // KERNEL_MODE
+#endif // _KERNEL_MODE
 
 #else
 
