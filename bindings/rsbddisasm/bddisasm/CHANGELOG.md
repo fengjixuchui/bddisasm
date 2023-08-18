@@ -1,5 +1,21 @@
 # bddisasm changelog
 
+## 0.3.1
+
+### Added
+
+- support for new Intel ISA, per Intel Architecture Instruction Set Extensions and Future Features document #319433-049 (June 2023): AVX-NNI-INT16, SHA512, SM3, SM4, TSE.
+
+### Changed
+
+- `Mnemonic`, `IsaSet`, and `Category` use all caps for the enum variants
+
+## 0.3.0
+
+### Fixed
+
+- #84: handle 0 sizes in `OpSize::from_raw`
+
 ## 0.2.1
 
 ### Added

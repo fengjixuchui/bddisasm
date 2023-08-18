@@ -598,13 +598,13 @@ impl DecodedInstruction {
     ///
     /// let ins =
     ///     DecodedInstruction::decode(&[0x50], DecodeMode::Bits64)?;
-    /// assert_eq!(ins.mnemonic(), Mnemonic::Push);
+    /// assert_eq!(ins.mnemonic(), Mnemonic::PUSH);
     /// assert_eq!(ins.op_mode(), OperandSize::OpSize32);
     /// assert_eq!(ins.effective_op_mode(), OperandSize::OpSize64);
     ///
     /// let ins =
     ///     DecodedInstruction::decode(&[0x48, 0x50], DecodeMode::Bits64)?;
-    /// assert_eq!(ins.mnemonic(), Mnemonic::Push);
+    /// assert_eq!(ins.mnemonic(), Mnemonic::PUSH);
     /// assert_eq!(ins.op_mode(), OperandSize::OpSize64);
     /// assert_eq!(ins.effective_op_mode(), OperandSize::OpSize64);
     /// # Ok(())
@@ -1237,7 +1237,7 @@ impl DecodedInstruction {
         }
     }
 
-    /// Get the second immediate. Used mainly for [`Mnemonic::Enter`](Mnemonic::Enter).
+    /// Get the second immediate. Used mainly for [`Mnemonic::ENTER`](Mnemonic::ENTER).
     #[inline]
     pub fn immediate2(&self) -> Option<u8> {
         if self.has_imm2() {
@@ -1550,7 +1550,7 @@ mod tests {
     fn decode() {
         let code = vec![0xb8, 0x00, 0x00, 0x00, 0x00];
         let ins = DecodedInstruction::decode(&code, DecodeMode::Bits32).expect("Unable to decode");
-        assert_eq!(ins.instruction, Mnemonic::Mov);
+        assert_eq!(ins.instruction, Mnemonic::MOV);
         assert_eq!(ins.bytes(), code);
         assert_eq!(format!("{}", ins), "MOV       eax, 0x00000000");
     }
@@ -1560,7 +1560,7 @@ mod tests {
         let code = b"\x48\x8b\x05\xf9\xff\xff\xff";
         let ins = DecodedInstruction::decode_with_ip(code, DecodeMode::Bits64, 0x100)
             .expect("Unable to decode");
-        assert_eq!(ins.instruction, Mnemonic::Mov);
+        assert_eq!(ins.instruction, Mnemonic::MOV);
         assert_eq!(ins.bytes(), code);
         assert_eq!(format!("{}", ins), "MOV       rax, qword ptr [rel 0x100]");
     }
@@ -1633,6 +1633,9 @@ mod tests {
                 evex_rounding += 1;
             }
         }
+
+        // There is no `ND_SIZE_*` macro for 0, but the size 0 is valid, so test it here.
+        assert_eq!(operand::OpSize::from_raw(0), Ok(operand::OpSize::Bytes(0)));
     }
 
     #[test]
