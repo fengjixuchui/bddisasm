@@ -15,7 +15,7 @@
 
 #define ARRAY_SIZE(x) (sizeof(x) / sizeof(*(x)))
 
-#if _MSC_VER
+#ifdef _MSC_VER
 int nd_vsnprintf_s(char *buffer, size_t size, size_t count, const char *format, va_list argptr)
 {
     return vsnprintf(buffer, size, format, argptr);
@@ -27,7 +27,7 @@ void * nd_memset(void *s, int c, size_t n)
 }
 #endif
 
-void nd_get_version(ND_UINT32 *major, ND_UINT32 *minor, ND_UINT32 *revision, char **build_date, char **build_time)
+void nd_get_version(ND_UINT32 *major, ND_UINT32 *minor, ND_UINT32 *revision, const char **build_date, const char **build_time)
 {
     NdGetVersion(major, minor, revision, build_date, build_time);
 }
